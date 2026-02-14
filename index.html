@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Trend Engine Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-white min-h-screen">
+
+<div class="max-w-3xl mx-auto px-6 py-10 flex flex-col space-y-6">
+
+    <h1 class="text-3xl font-bold text-cyan-400">Trend Engine</h1>
+
+    <!-- Symbol Select -->
+    <select id="symbolSelect"
+        class="bg-slate-800 border border-slate-700 px-4 py-2 rounded-lg text-white w-full">
+        <option value="BTCUSDT">BTCUSDT</option>
+        <option value="ETHUSDT">ETHUSDT</option>
+        <option value="BNBUSDT">BNBUSDT</option>
+        <option value="SOLUSDT">SOLUSDT</option>
+    </select>
+
+    <!-- Multi TF -->
+    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+        <h2 class="text-slate-400 mb-2">Multi TF Alignment</h2>
+        <p id="tfMatch" class="text-2xl font-bold text-gray-400">Loading...</p>
+    </div>
+
+    <!-- Recent Cross -->
+    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+        <h2 class="text-slate-400 mb-2">1m Recent Cross</h2>
+        <p id="recentCross" class="text-2xl font-bold text-gray-400">Loading...</p>
+    </div>
+
+    <!-- Trend Per TF -->
+    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+        <h2 class="text-cyan-400 font-semibold">Trend Per Timeframe</h2>
+
+        <div>
+            <p class="text-slate-400">1m</p>
+            <p id="trend1m" class="text-xl font-bold"></p>
+        </div>
+
+        <div>
+            <p class="text-slate-400">5m</p>
+            <p id="trend5m" class="text-xl font-bold"></p>
+        </div>
+
+        <div>
+            <p class="text-slate-400">15m</p>
+            <p id="trend15m" class="text-xl font-bold"></p>
+        </div>
+    </div>
+
+    <!-- Times -->
+    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-3">
+        <h2 class="text-slate-400 mb-2">Times</h2>
+
+        <div>
+            <p class="text-slate-400">UTC</p>
+            <p id="timeUTC" class="text-xl font-mono"></p>
+        </div>
+
+        <div>
+            <p class="text-slate-400">London</p>
+            <p id="timeLondon" class="text-xl font-mono"></p>
+        </div>
+
+        <div>
+            <p class="text-slate-400">New York</p>
+            <p id="timeNY" class="text-xl font-mono"></p>
+        </div>
+
+        <div>
+            <p class="text-slate-400">Pakistan</p>
+            <p id="timePK" class="text-xl font-mono"></p>
+        </div>
+
+        <div>
+            <p class="text-slate-400">Tokyo</p>
+            <p id="timeTokyo" class="text-xl font-mono"></p>
+        </div>
+    </div>
+
+    <!-- Signal History -->
+    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-2">
+        <h2 class="text-cyan-400 font-semibold mb-2">Signal History</h2>
+        <div id="signalHistory" class="text-gray-400 text-sm font-mono max-h-64 overflow-y-auto"></div>
+    </div>
+
+</div>
+
+<script>
+const select = document.getElementById("symbolSelect");
+
+/* ---------------- COOKIE HELPERS ---------------- */
+function setCookie(name, value, days = 7) {
+    const d = new Date();
+    d.setTime(d.getTime() + (days*24*60*60*1000));
+    document.cookie = `${name}=${value};expires=${d.toUTCString()};path=/`;
+}
+
+function getCookie(name) {
+    const cookies = document.cookie.split(';');
+    for (let c of cookies) {
+        const [key, val] = c.trim().split('=');
+        if (key === name) return val;
+    }
+    return null;
+}
+
+/* ---------------- FETCH DATA ---------------- */
+async function fetchTrend() {
+    try {
+        const symbol = getCookie("symbol") || "BTCUSDT";
+        const res = await fetch(`http://127.0.0.1:5000/api/trend?symbol=${symbol}`);
+        const data = await res.json();
+
+        // Update signals
+        update("tfMatch", data.tf_match);
+        update("recentCross", data.recent_cross);
+
+        update("trend1m", data.trends?.["1m"]);
+        update("trend5m", data.trends?.["5m"]);
+        update("trend15m", data.trends?.["15m"]);
+
+        // Update times
+        if (data.times) {
+            document.getElementById("timeUTC").textContent = data.times.UTC || "--";
+            document.getElementById("timeLondon").textContent = data.times.London || "--";
+            document.getElementById("timeNY").textContent = data.times.New_York || "--";
+            document.getElementById("timePK").textContent = data.times.PK || "--";
+            document.getElementById("timeTokyo").textContent = data.times.Tokyo || "--";
+        }
+
+        // Save signal history
+        addToHistory(data.tf_match, data.recent_cross);
+
+    } catch (err) {
+        console.log("API Error:", err);
+    }
+}
+
+/* ---------------- UPDATE ELEMENT ---------------- */
+function update(id, value) {
+    const el = document.getElementById(id);
+    el.textContent = value || "NO DATA";
+    el.className = getColor(value);
+}
+
+function getColor(signal) {
+    if (!signal) return "text-gray-400 text-xl font-bold";
+    if (signal.includes("BULL")) return "text-green-400 text-xl font-bold";
+    if (signal.includes("BEAR")) return "text-red-400 text-xl font-bold";
+    return "text-gray-400 text-xl font-bold";
+}
+
+/* ---------------- SIGNAL HISTORY ---------------- */
+function addToHistory(multiTF, recent1m) {
+    if (!multiTF && !recent1m) return;
+
+    let history = JSON.parse(localStorage.getItem("signalHistory") || "[]");
+    const timestamp = new Date().toLocaleTimeString();
+
+    const newEntry = {};
+    if (multiTF && multiTF !== "NO DATA") newEntry["Multi TF"] = multiTF;
+    if (recent1m && recent1m !== "NO DATA") newEntry["1m Cross"] = recent1m;
+    if (Object.keys(newEntry).length === 0) return;
+
+    newEntry.time = timestamp;
+    history.push(newEntry);
+    if (history.length > 50) history.shift();
+
+    localStorage.setItem("signalHistory", JSON.stringify(history));
+    renderHistory();
+}
+
+function renderHistory() {
+    const historyDiv = document.getElementById("signalHistory");
+    const history = JSON.parse(localStorage.getItem("signalHistory") || "[]");
+
+    historyDiv.innerHTML = history
+        .map(h => {
+            let line = `[${h.time}] `;
+            if (h["Multi TF"]) line += `Multi TF: ${h["Multi TF"]} `;
+            if (h["1m Cross"]) line += `1m Cross: ${h["1m Cross"]}`;
+            return `<div>${line}</div>`;
+        })
+        .join("");
+}
+
+/* ---------------- INIT ---------------- */
+window.addEventListener("load", () => {
+    const saved = getCookie("symbol");
+    if (saved) select.value = saved;
+    else setCookie("symbol", select.value);
+
+    renderHistory();
+    fetchTrend();
+});
+
+/* Change symbol -> update cookie */
+select.addEventListener("change", () => {
+    setCookie("symbol", select.value);
+});
+
+/* Watch cookie and reload if changed */
+let lastSymbol = getCookie("symbol");
+setInterval(() => {
+    const current = getCookie("symbol");
+    if (current !== lastSymbol) location.reload();
+}, 1000);
+
+/* Auto refresh data */
+setInterval(fetchTrend, 30000);
+</script>
+
+</body>
+</html>
