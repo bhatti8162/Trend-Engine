@@ -113,7 +113,7 @@ function getCookie(name) {
 async function fetchTrend() {
     try {
         const symbol = getCookie("symbol") || "BTCUSDT";
-        const res = await fetch(`http://127.0.0.1:5000/api/trend?symbol=${symbol}`);
+        const res = await fetch(`/api/trend?symbol=${symbol}`);
         const data = await res.json();
 
         // Update signals
@@ -134,7 +134,7 @@ async function fetchTrend() {
         }
 
         // Save signal history
-        addToHistory(data.tf_match, data.recent_cross);
+        addToHistory(data.recent_cross, data.symbol);
 
     } catch (err) {
         console.log("API Error:", err);
@@ -156,20 +156,25 @@ function getColor(signal) {
 }
 
 /* ---------------- SIGNAL HISTORY ---------------- */
-function addToHistory(multiTF, recent1m) {
-    if (!multiTF && !recent1m) return;
+function addToHistory(recent1m, symbol) {
+    if (recent1m == null) return;   // blocks only null and undefined
+
+    const log = `${recent1m} ${symbol}`;
 
     let history = JSON.parse(localStorage.getItem("signalHistory") || "[]");
+
     const timestamp = new Date().toLocaleTimeString();
 
-    const newEntry = {};
-    if (multiTF && multiTF !== "NO DATA") newEntry["Multi TF"] = multiTF;
-    if (recent1m && recent1m !== "NO DATA") newEntry["1m Cross"] = recent1m;
-    if (Object.keys(newEntry).length === 0) return;
+    const newEntry = {
+        "1m Cross": log,
+        time: timestamp
+    };
 
-    newEntry.time = timestamp;
     history.push(newEntry);
-    if (history.length > 50) history.shift();
+
+    if (history.length > 50) {
+        history.shift();
+    }
 
     localStorage.setItem("signalHistory", JSON.stringify(history));
     renderHistory();
@@ -182,7 +187,6 @@ function renderHistory() {
     historyDiv.innerHTML = history
         .map(h => {
             let line = `[${h.time}] `;
-            if (h["Multi TF"]) line += `Multi TF: ${h["Multi TF"]} `;
             if (h["1m Cross"]) line += `1m Cross: ${h["1m Cross"]}`;
             return `<div>${line}</div>`;
         })

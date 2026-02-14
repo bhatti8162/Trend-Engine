@@ -32,7 +32,12 @@ def utc_now():
     return datetime.now(timezone.utc)
 
 def format_time(dt, tz_name):
-    return dt.astimezone(ZoneInfo(tz_name)).strftime("%Y-%m-%d %H:%M:%S")
+    local_time = dt.astimezone(ZoneInfo(tz_name))
+    
+    if tz_name.upper() == "UTC":
+        return local_time.strftime("%Y-%m-%d %H:%M:%S")   # 24-hour
+    else:
+        return local_time.strftime("%I:%M:%S %p")  # 12-hour with AM/PM
 
 def fetch_klines(symbol, interval):
     klines = client.futures_klines(symbol=symbol, interval=interval, limit=LIMIT)
