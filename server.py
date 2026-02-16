@@ -1,262 +1,269 @@
-from flask import Flask, render_template, jsonify, request
-from flask_cors import CORS
-from binance.client import Client
-import pandas as pd
-from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
-from collections import OrderedDict
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Trend Engine Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-white min-h-screen">
 
-app = Flask(__name__)
-CORS(app)  # Enable CORS
+<div class="max-w-3xl mx-auto px-6 py-10 flex flex-col space-y-6">
 
-# ================= CONFIG =================
-API_KEY = "RMjOPL4EjT8v8dEJPtmpdQbUloPpMreOSQt1eqiH6KIFqJ2IYT5g0Kypxehpjie1"
-API_SECRET = "H1ZLDQQR6nD5QI4F8z11PryhfMV8wIRmJdRYFwtbdChVFAr7eq3xxxCRPf0H6yKT"
+    <h1 class="text-3xl font-bold text-cyan-400">Trend Engine</h1>
 
-SYMBOL_DEFAULT = "BTCUSDT"
-TRADE_BOT = "on" 
-QTY_DEFAULT = 0.001
-MA_FAST = 50
-MA_SLOW = 100
-LIMIT = 200
-TIMEFRAMES = ["15m", "5m", "1m"]
+    <!-- Symbol Select -->
+    <select id="symbolSelect"
+        class="bg-slate-800 border border-slate-700 px-4 py-2 rounded-lg text-white w-full">
+        <option value="BTCUSDT">BTCUSDT</option>
+        <option value="ETHUSDT">ETHUSDT</option>
+        <option value="BNBUSDT">BNBUSDT</option>
+        <option value="SOLUSDT">SOLUSDT</option>
+    </select>
 
-LOG_FILE = "trend_log.txt"
+    <!-- Multi TF -->
+    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+        <h2 class="text-slate-400 mb-2">Multi TF Alignment</h2>
+        <p id="tfMatch" class="text-2xl font-bold text-gray-400">Loading...</p>
+    </div>
 
-client = Client(API_KEY, API_SECRET)
-# client.FUTURES_URL = 'https://fapi.binance.com/fapi'
-client.FUTURES_URL = 'https://testnet.binancefuture.com/fapi'
+    <!-- Recent Price -->
+    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+        <h2 class="text-slate-400 mb-2">Recent Price</h2>
+        <p id="recentCross" class="text-2xl font-bold text-gray-400">Loading...</p>
+    </div>
 
-last_cross_time = None
-# ==========================================
+    <!-- Trend Per TF -->
+    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+        <h2 class="text-cyan-400 font-semibold">Trend Per Timeframe</h2>
 
-# -------- Helper Functions --------
-def utc_now():
-    return datetime.now(timezone.utc)
+        <div>
+            <p class="text-slate-400">1m</p>
+            <p id="trend1m" class="text-xl font-bold">--</p>
+        </div>
 
-def format_time(dt, tz_name):
-    local_time = dt.astimezone(ZoneInfo(tz_name))
-    
-    if tz_name.upper() == "UTC":
-        return local_time.strftime("%Y-%m-%d %H:%M:%S")   # 24-hour
-    else:
-        return local_time.strftime("%I:%M:%S %p")  # 12-hour with AM/PM
+        <div>
+            <p class="text-slate-400">5m</p>
+            <p id="trend5m" class="text-xl font-bold">--</p>
+        </div>
 
-def fetch_klines(symbol, interval):
-    klines = client.futures_klines(symbol=symbol, interval=interval, limit=LIMIT)
-    df = pd.DataFrame(klines, columns=[
-        'time','open','high','low','close','volume',
-        'close_time','qav','trades','taker_base_vol',
-        'taker_quote_vol','ignore'
-    ])
-    df['close'] = df['close'].astype(float)
-    df['close_time'] = pd.to_datetime(df['close_time'], unit='ms', utc=True)
-    df['ma50'] = df['close'].rolling(MA_FAST).mean()
-    df['ma100'] = df['close'].rolling(MA_SLOW).mean()
-    return df
+        <div>
+            <p class="text-slate-400">15m</p>
+            <p id="trend15m" class="text-xl font-bold">--</p>
+        </div>
+    </div>
+    <!-- ATR Per TF -->
+    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+        <h2 class="text-cyan-400 font-semibold">ATR Per Timeframe</h2>
 
-def get_trend_strength(df):
-    last = df.iloc[-1]
-    if pd.isna(last['ma50']) or pd.isna(last['ma100']):
-        return None, 0
-    distance = abs(last['ma50'] - last['ma100'])
-    if last['ma50'] > last['ma100']:
-        return "BULLISH", round(distance, 2)
-    elif last['ma50'] < last['ma100']:
-        return "BEARISH", round(distance, 2)
-    return None, 0
+        <div>
+            <p class="text-slate-400">1m</p>
+            <p id="atr1m" class="text-xl font-bold">--</p>
+        </div>
 
-def detect_recent_cross(df):
-    global last_cross_time
-    prev = df.iloc[-2]
-    last = df.iloc[-1]
-    if pd.isna(prev['ma50']) or pd.isna(prev['ma100']):
-        return None, None
-    cross_time = last['close_time']
-    # Bullish Cross
-    if prev['ma50'] < prev['ma100'] and last['ma50'] > last['ma100']:
-        if last_cross_time != cross_time:
-            last_cross_time = cross_time
-            return "BULLISH_CROSS", cross_time
-    # Bearish Cross
-    if prev['ma50'] > prev['ma100'] and last['ma50'] < last['ma100']:
-        if last_cross_time != cross_time:
-            last_cross_time = cross_time
-            return "BEARISH_CROSS", cross_time
-    return None, None
+        <div>
+            <p class="text-slate-400">5m</p>
+            <p id="atr5m" class="text-xl font-bold">--</p>
+        </div>
 
-# -------- Core Engine --------
-def check_trend_engine(symbol):
-    trend_map = OrderedDict((tf, None) for tf in TIMEFRAMES)
-    strength_map = OrderedDict((tf, 0) for tf in TIMEFRAMES)
+        <div>
+            <p class="text-slate-400">15m</p>
+            <p id="atr15m" class="text-xl font-bold">--</p>
+        </div>
+    </div>
 
-    for tf in TIMEFRAMES:
-        df = fetch_klines(symbol, tf)
-        trend, strength = get_trend_strength(df)
-        trend_map[tf] = trend
-        strength_map[tf] = strength
+    <!-- Times -->
+    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-3">
+        <h2 class="text-slate-400 mb-2">Times</h2>
 
-    # Multi-TF Alignment
-    if all(v == "BULLISH" for v in trend_map.values()):
-        tf_match = "STRONG_BULLISH"
-    elif all(v == "BEARISH" for v in trend_map.values()):
-        tf_match = "STRONG_BEARISH"
-    else:
-        tf_match = None
+        <div>
+            <p class="text-slate-400">UTC</p>
+            <p id="timeUTC" class="text-xl font-mono">--</p>
+        </div>
 
-    # 1m Recent Cross
-    df_1m = fetch_klines(symbol, "1m")
-    cross_signal, cross_time = detect_recent_cross(df_1m)
-    # Get current price (last close)
-    current_price = float(df_1m.iloc[-1]['close'])
+        <div>
+            <p class="text-slate-400">London</p>
+            <p id="timeLondon" class="text-xl font-mono">--</p>
+        </div>
 
-    now = utc_now()
-    times = OrderedDict([
-        ("UTC", format_time(now, "UTC")),
-        ("PK", format_time(now, "Asia/Karachi")),
-        ("London", format_time(now, "Europe/London")),
-        ("New_York", format_time(now, "America/New_York")),
-        ("Tokyo", format_time(now, "Asia/Tokyo"))
-    ])
+        <div>
+            <p class="text-slate-400">New York</p>
+            <p id="timeNY" class="text-xl font-mono">--</p>
+        </div>
 
+        <div>
+            <p class="text-slate-400">Pakistan</p>
+            <p id="timePK" class="text-xl font-mono">--</p>
+        </div>
 
-    return {
-    "times": times,
-    "symbol": symbol,
-    "price": round(current_price),
-    "trends": trend_map,
-    "strength": strength_map,
-    "tf_match": tf_match,
-    "recent_cross": cross_signal,
-    "cross_time": str(cross_time)
-    }   
+        <div>
+            <p class="text-slate-400">Tokyo</p>
+            <p id="timeTokyo" class="text-xl font-mono">--</p>
+        </div>
+    </div>
 
+    <!-- Trade Status -->
+    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-2">
+        <h2 class="text-cyan-400 font-semibold mb-2">Trade Status</h2>
+        <p id="tradeAction" class="text-xl font-bold text-gray-400">Loading...</p>
+        <p id="tradeSummary" class="text-gray-400 text-sm font-mono">Loading...</p>
+    </div>
 
-# -------- Trading Engine --------
-def get_current_position(symbol):
-    positions = client.futures_position_information(symbol=symbol)
-    for pos in positions:
-        amt = float(pos["positionAmt"])
-        if amt != 0:
-            return amt
-    return 0.0
+    <!-- Signal History -->
+    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-2">
+        <h2 class="text-cyan-400 font-semibold mb-2">Signal History</h2>
+        <div id="signalHistory" class="text-gray-400 text-sm font-mono max-h-64 overflow-y-auto"></div>
+    </div>
 
-def execute_single_trade(symbol, tf_match, quantity=QTY_DEFAULT):
-    """
-    Executes one trade per symbol:
-    - STRONG_BULLISH -> long
-    - STRONG_BEARISH -> short
-    - None or mismatch -> close any open trade
-    """
-    if(TRADE_BOT == "on"): 
-        try:
-            position_amt = get_current_position(symbol)
+</div>
 
-            # ===== STRONG BULLISH =====
-            if tf_match == "STRONG_BULLISH":
-                if position_amt > 0:
-                    return "Already in LONG"
-                if position_amt < 0:
-                    # Close existing SHORT
-                    client.futures_create_order(
-                        symbol=symbol,
-                        side="BUY",
-                        type="MARKET",
-                        quantity=abs(position_amt)
-                    )
-                # Open LONG
-                client.futures_create_order(
-                    symbol=symbol,
-                    side="BUY",
-                    type="MARKET",
-                    quantity=quantity
-                )
-                return "Opened LONG"
+<script>
+const select = document.getElementById("symbolSelect");
 
-            # ===== STRONG BEARISH =====
-            elif tf_match == "STRONG_BEARISH":
-                if position_amt < 0:
-                    return "Already in SHORT"
-                if position_amt > 0:
-                    # Close existing LONG
-                    client.futures_create_order(
-                        symbol=symbol,
-                        side="SELL",
-                        type="MARKET",
-                        quantity=abs(position_amt)
-                    )
-                # Open SHORT
-                client.futures_create_order(
-                    symbol=symbol,
-                    side="SELL",
-                    type="MARKET",
-                    quantity=quantity
-                )
-                return "Opened SHORT"
+/* ---------------- COOKIE HELPERS ---------------- */
+function setCookie(name, value, days = 7) {
+    const d = new Date();
+    d.setTime(d.getTime() + (days*24*60*60*1000));
+    document.cookie = `${name}=${value};expires=${d.toUTCString()};path=/`;
+}
 
-            # ===== NO ALIGNMENT =====
-            else:
-                if position_amt > 0:
-                    client.futures_create_order(
-                        symbol=symbol,
-                        side="SELL",
-                        type="MARKET",
-                        quantity=abs(position_amt)
-                    )
-                    return "Closed Position"
-                elif position_amt < 0:
-                    client.futures_create_order(
-                        symbol=symbol,
-                        side="BUY",
-                        type="MARKET",
-                        quantity=abs(position_amt)
-                    )
-                    return "Closed Position"
-                else:
-                    return "No position"
-
-        except Exception as e:
-            return f"Trade Error: {str(e)}"
-    else:
-        return "TRADE_BOT = OFF"
-
-    
-def trade_summary_single(symbol, tf_match):
-    position_amt = get_current_position(symbol)
-    
-    if position_amt > 0:
-        position_type = "LONG"
-    elif position_amt < 0:
-        position_type = "SHORT"
-    else:
-        position_type = "NONE"
-
-    return {
-        "symbol": symbol,
-        "signal": tf_match,
-        "current_position": position_type,
-        "position_size": abs(position_amt)
+function getCookie(name) {
+    const cookies = document.cookie.split(';');
+    for (let c of cookies) {
+        const [key, val] = c.trim().split('=');
+        if (key === name) return val;
     }
+    return null;
+}
+
+/* ---------------- FETCH DATA ---------------- */
+async function fetchTrend() {
+    try {
+        const symbol = getCookie("symbol") || "BTCUSDT";
+        const res = await fetch(`/api/trend?symbol=${symbol}`);
+        const data = await res.json();
+
+        // Multi-TF Alignment
+        update("tfMatch", data.tf_match);
+
+        // Trends per timeframe
+        update("trend1m", data.trends?.["1m"]);
+        update("trend5m", data.trends?.["5m"]);
+        update("trend15m", data.trends?.["15m"]);
+
+        // ATR per timeframe
+        update("atr1m", data.atr_strength?.["1m"]);
+        update("atr5m", data.atr_strength?.["5m"]);
+        update("atr15m", data.atr_strength?.["15m"]);
 
 
-# -------- API Routes --------
-@app.route("/api/trend")
-def trend_api():
-    symbol = request.args.get("symbol", SYMBOL_DEFAULT)
-    data = check_trend_engine(symbol)
 
-    trade_action = execute_single_trade(symbol, data["tf_match"])
-    summary = trade_summary_single(symbol, data["tf_match"])
+        // Times
+        if (data.times) {
+            // Times
+            update("timeUTC", data.times.UTC);
+            update("timeLondon", data.times.London);
+            update("timeNY", data.times?.New_York);
+            update("timePK", data.times?.PK);
+            update("timeTokyo", data.times?.Tokyo);
+        }
 
-    data["trade_action"] = trade_action
-    data["summary"] = summary
+        // Trade action & summary
+        updateColored("tradeAction", data.trade_action);
+        updateText("tradeSummary", formatSummary(data.summary));
 
-    return jsonify(data)
 
-@app.route("/")
-def home():
-    return render_template("index.html")
+        // Save signal history (only 1m crosses)
+        addToHistory(data.recent_cross, data.symbol, data.price);
 
-# -------- Run App --------
-if __name__ == "__main__":
-    app.run(debug=True)
+        // Current price
+        update("recentCross", data.price);
+
+    } catch (err) {
+        console.log("API Error:", err);
+    }
+}
+
+/* ---------------- UPDATE ELEMENTS ---------------- */
+function update(id, value) {
+    const el = document.getElementById(id);
+    el.textContent = value || "NO DATA";
+    el.className = getColor(value);
+}
+
+function updateText(id, value) {
+    const el = document.getElementById(id);
+    el.textContent = value || "--";
+}
+
+function updateColored(id, value) {
+    const el = document.getElementById(id);
+    el.textContent = value || "--";
+    el.className = getColor(value);
+}
+
+function getColor(signal) {
+    if (!signal) return "text-gray-400 text-xl font-bold";
+    if (signal.includes("LONG") || signal.includes("BULL")) return "text-green-400 text-xl font-bold";
+    if (signal.includes("SHORT") || signal.includes("BEAR")) return "text-red-400 text-xl font-bold";
+    if (signal.includes("Closed")) return "text-gray-400 text-xl font-bold";
+    return "text-gray-400 text-xl font-bold";
+}
+
+function formatSummary(summary) {
+    if (!summary) return "--";
+    return `Position: ${summary.current_position}, Size: ${summary.position_size}, Signal: ${summary.signal}`;
+}
+
+/* ---------------- SIGNAL HISTORY ---------------- */
+function addToHistory(recent1m, symbol, price) {
+    if (recent1m == null) return;
+
+    const log = `${recent1m} ${symbol} ${price}`;
+    let history = JSON.parse(localStorage.getItem("signalHistory") || "[]");
+
+    const now = new Date();
+    const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+
+    history.push({ "1m Cross": log, time: timestamp });
+    if (history.length > 50) history.shift();
+
+    localStorage.setItem("signalHistory", JSON.stringify(history));
+    renderHistory();
+}
+
+function renderHistory() {
+    const historyDiv = document.getElementById("signalHistory");
+    const history = JSON.parse(localStorage.getItem("signalHistory") || "[]");
+
+    historyDiv.innerHTML = history
+        .map(h => `[${h.time}] 1m Cross: ${h["1m Cross"]}`)
+        .map(line => `<div>${line}</div>`)
+        .join("");
+}
+
+/* ---------------- INIT ---------------- */
+window.addEventListener("load", () => {
+    const saved = getCookie("symbol");
+    if (saved) select.value = saved;
+    else setCookie("symbol", select.value);
+
+    renderHistory();
+    fetchTrend();
+});
+
+/* Change symbol -> update cookie */
+select.addEventListener("change", () => setCookie("symbol", select.value));
+
+/* Watch cookie and reload if changed */
+let lastSymbol = getCookie("symbol");
+setInterval(() => {
+    const current = getCookie("symbol");
+    if (current !== lastSymbol) location.reload();
+}, 1000);
+
+/* Auto refresh data */
+setInterval(fetchTrend, 30000);
+</script>
+
+</body>
+</html>
