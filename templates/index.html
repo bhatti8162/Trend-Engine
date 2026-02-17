@@ -51,6 +51,28 @@
             <p id="trend15m" class="text-xl font-bold">--</p>
         </div>
     </div>
+
+    <!-- ADX Per TF -->
+    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+        <h2 class="text-cyan-400 font-semibold">ADX Per Timeframe</h2>
+
+        <div>
+            <p class="text-slate-400">1m</p>
+            <p id="adx1m" class="text-xl font-bold">--</p>
+        </div>
+
+        <div>
+            <p class="text-slate-400">5m</p>
+            <p id="adx5m" class="text-xl font-bold">--</p>
+        </div>
+
+        <div>
+            <p class="text-slate-400">15m</p>
+            <p id="adx15m" class="text-xl font-bold">--</p>
+        </div>
+    </div>
+
+
     <!-- ATR Per TF -->
     <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
         <h2 class="text-cyan-400 font-semibold">ATR Per Timeframe</h2>
@@ -150,11 +172,15 @@ async function fetchTrend() {
         update("trend5m", data.trends?.["5m"]);
         update("trend15m", data.trends?.["15m"]);
 
+        // ADX per timeframe
+        update("adx1m", data.adx_strength?.["1m"]);
+        update("adx5m", data.adx_strength?.["5m"]);
+        update("adx15m", data.adx_strength?.["15m"]);
+
         // ATR per timeframe
         update("atr1m", data.atr_strength?.["1m"]);
         update("atr5m", data.atr_strength?.["5m"]);
         update("atr15m", data.atr_strength?.["15m"]);
-
 
 
         // Times

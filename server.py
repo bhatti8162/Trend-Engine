@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from collections import OrderedDict
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
@@ -23,6 +25,8 @@ MA_FAST = 50
 MA_SLOW = 100
 LIMIT = 200
 TIMEFRAMES = ["15m", "5m", "1m"]
+
+LAST_TF_MATCH = None
 
 # Use Testnet safely
 client = Client(API_KEY, API_SECRET)
@@ -80,7 +84,8 @@ def fetch_klines(symbol, interval):
         return None
 
 
-def calculate_atr(df, period=14):
+def calculate_indicators(df, period=14):
+    # ----- TRUE RANGE (ATR) -----
     df['high-low'] = df['high'] - df['low']
     df['high-close'] = (df['high'] - df['close'].shift()).abs()
     df['low-close'] = (df['low'] - df['close'].shift()).abs()
@@ -88,15 +93,39 @@ def calculate_atr(df, period=14):
     df['tr'] = df[['high-low', 'high-close', 'low-close']].max(axis=1)
     df['atr'] = df['tr'].rolling(window=period).mean()
 
+    # ----- DIRECTIONAL MOVEMENT -----
+    df['up_move'] = df['high'].diff()
+    df['down_move'] = -df['low'].diff()
+
+    df['+dm'] = df['up_move'].where(
+        (df['up_move'] > df['down_move']) & (df['up_move'] > 0), 0.0
+    )
+
+    df['-dm'] = df['down_move'].where(
+        (df['down_move'] > df['up_move']) & (df['down_move'] > 0), 0.0
+    )
+
+    # ----- SMOOTHED DM -----
+    df['+di'] = 100 * (df['+dm'].rolling(window=period).mean() / df['atr'])
+    df['-di'] = 100 * (df['-dm'].rolling(window=period).mean() / df['atr'])
+
+    # ----- DX & ADX -----
+    df['dx'] = (
+        (abs(df['+di'] - df['-di']) / (df['+di'] + df['-di'])) * 100
+    )
+
+    df['adx'] = df['dx'].rolling(window=period).mean()
+
     return df
 
 
-def get_trend_strength(df, atr_period=14):
+
+def get_trend(df, atr_period=14):
 
     if df is None or len(df) < MA_SLOW:
         return None, "UNKNOWN"
 
-    df = calculate_atr(df, period=atr_period)
+    df = calculate_indicators(df, period=atr_period)
     last = df.iloc[-1]
 
     if pd.isna(last['ma50']) or pd.isna(last['ma100']) or pd.isna(last['atr']):
@@ -105,24 +134,34 @@ def get_trend_strength(df, atr_period=14):
     atr_percent = (last['atr'] / last['close']) * 100
 
     if atr_percent < 1:
-        volatility = "LOW"
+        atr = "LOW"
     elif atr_percent < 3:
-        volatility = "MEDIUM"
+        atr = "MEDIUM"
     else:
-        volatility = "HIGH"
+        atr = "HIGH"
+    
+    adx_value = last['adx']
+
+    if adx_value < 20:
+        adx = "WEAK"
+    elif adx_value < 25:
+        adx = "MODERATE"
+    else:
+        adx = "STRONG"
 
     if last['ma50'] > last['ma100']:
-        return "BULLISH", volatility
+        return "BULLISH", atr, adx
     elif last['ma50'] < last['ma100']:
-        return "BEARISH", volatility
+        return "BEARISH", atr, adx
 
-    return None, volatility
+    return None, atr, adx
 
 
 # -------- Core Engine --------
-def get_signal_values(symbol):
+def get_signals_main(symbol):
     trend_map = OrderedDict()
-    strength_map = OrderedDict()
+    atr_strength_map = OrderedDict()
+    adx_strength_map= OrderedDict()
 
     price_cache = None
 
@@ -131,12 +170,13 @@ def get_signal_values(symbol):
 
         if df is None:
             trend_map[tf] = None
-            strength_map[tf] = "ERROR"
+            atr_strength_map[tf] = "ERROR"
             continue
 
-        trend, strength = get_trend_strength(df)
+        trend, atr, adx = get_trend(df)
         trend_map[tf] = trend
-        strength_map[tf] = strength
+        atr_strength_map[tf] = atr
+        adx_strength_map[tf] = adx
 
         # Cache 1m price
         if tf == "1m":
@@ -150,6 +190,13 @@ def get_signal_values(symbol):
     else:
         tf_match = None
 
+    # --- Only consider as new trend if it changed ---
+    global LAST_TF_MATCH
+    new_trend = None
+    if tf_match != LAST_TF_MATCH:
+        new_trend = tf_match
+        LAST_TF_MATCH = tf_match  # update last trend
+
     now = utc_now()
     times = OrderedDict([
         ("UTC", format_time(now, "UTC")),
@@ -158,18 +205,19 @@ def get_signal_values(symbol):
         ("New_York", format_time(now, "America/New_York")),
         ("Tokyo", format_time(now, "Asia/Tokyo"))
     ])
-    return times, symbol, price_cache, trend_map, strength_map, tf_match
+    return times, symbol, price_cache, trend_map, atr_strength_map, adx_strength_map, tf_match, new_trend
 
 
 def check_trend_engine(symbol):
-    times, symbol, price_cache,trend_map,strength_map, tf_match = get_signal_values(symbol)
+    times, symbol, price_cache,trend_map,atr_strength_map, adx_strength_map, tf_match, new_trend= get_signals_main(symbol)
 
     return {
         "times": times,
         "symbol": symbol,
         "price": round(price_cache, 2) if price_cache else None,
         "trends": trend_map,
-        "atr_strength": strength_map,
+        "atr_strength": atr_strength_map,
+        "adx_strength": adx_strength_map,
         "tf_match": tf_match
     }
 
@@ -202,9 +250,9 @@ def execute_single_trade(symbol, quantity=QTY_DEFAULT):
     - Only one active position at a time
     - Adds trailing stop
     """
-    times, symbol, price_cache,trend_map,strength_map, tf_match = get_signal_values(symbol)
+    times, symbol, price_cache,trend_map,atr_strength_map, adx_strength_map, tf_match, new_trend = get_signals_main(symbol)
 
-    print(f"{tf_match} {strength_map['1m']} xxxxxxxxxxxxxxx")
+    print(f"tf_match:{tf_match} new_trend:{new_trend} ATR:{atr_strength_map['15m']} ADX:{adx_strength_map['15m']}  xxxxxxXXXXXXXXXXXXXXxxxxx")
     if TRADE_BOT != "on":
         return "TRADE_BOT = OFF"
 
@@ -212,13 +260,17 @@ def execute_single_trade(symbol, quantity=QTY_DEFAULT):
         # Get current position
         position_amt = get_current_position(symbol)
 
-        # ---- ATR Filter ----
-        atr_strength = strength_map['1m']
-        if atr_strength == "LOW":  # adjust threshold
-            return f"ATR too ({atr_strength}), skipping trade"
+        # ---- ATR AND ADXFilter ----
+        atr_strength = atr_strength_map['15m']
+        adx_strength = adx_strength_map['15m']
+        if atr_strength.upper() == "LOW" or adx_strength.upper() == "weak":  # adjust threshold
+            return f"ATR TOO ({atr_strength}), ADX TOO ({adx_strength}), skipping trade"
+        
+        if new_trend == None:
+            return f"Trend is old, New Trend is ({new_trend})"
 
         # ---- STRONG BULLISH ----
-        if tf_match == "STRONG_BULLISH":
+        if new_trend == "STRONG_BULLISH" and tf_match == "STRONG_BULLISH":
             # Already in LONG? skip duplicate
             if position_amt > 0:
                 return "Already in LONG, skipping duplicate"
@@ -253,7 +305,7 @@ def execute_single_trade(symbol, quantity=QTY_DEFAULT):
             return "Opened LONG with trailing stop"
 
         # ---- STRONG BEARISH ----
-        elif tf_match == "STRONG_BEARISH":
+        elif new_trend  == "STRONG_BEARISH" and tf_match == "STRONG_BEARISH":
             # Already in SHORT? skip duplicate
             if position_amt < 0:
                 return "Already in SHORT, skipping duplicate"
