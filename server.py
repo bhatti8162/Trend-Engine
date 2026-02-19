@@ -28,6 +28,12 @@ TIMEFRAMES = ["15m", "5m", "1m"]
 
 LAST_TF_MATCH = None
 
+LONG_TRAIL_STOP = None
+SHORT_TRAIL_STOP = None
+
+LONG_HIT_TRIGGERED = False
+SHORT_HIT_TRIGGERED = False
+
 # Use Testnet safely
 client = Client(API_KEY, API_SECRET)
 client.FUTURES_URL = "https://testnet.binancefuture.com/fapi"
@@ -222,9 +228,9 @@ def get_signals_on_trend(symbol):
 
     # Multi-TF Alignment
     if all(v == "BULLISH" for v in trend_map.values()):
-        tf_match = "STRONG_BULLISH"
+        tf_match = "BULLISH"
     elif all(v == "BEARISH" for v in trend_map.values()):
-        tf_match = "STRONG_BEARISH"
+        tf_match = "BEARISH"
     else:
         tf_match = None
 
@@ -293,6 +299,12 @@ def check_trend_engine(symbol):
     times, symbol, price_cache,trend_map,atr_strength_map, adx_strength_map, rsi_strength_map, tf_match, new_trend= get_signals_on_trend(symbol)
 
     trade_decision = get_decision_on_signal(trend_map, atr_strength_map, adx_strength_map, rsi_strength_map)
+
+
+    
+    LONG_TRAIL_STOP, is_hit_LONG = long_trailing_atr(atr_strength_map["1m"],round(price_cache))
+    SHORT_TRAIL_STOP, is_hit_SHORT = short_trailing_atr(atr_strength_map["1m"],round(price_cache))
+
     return {
         "times": times,
         "symbol": symbol,
@@ -302,11 +314,80 @@ def check_trend_engine(symbol):
         "adx_strength": adx_strength_map,
         "rsi_strength": rsi_strength_map,
         "trade_decision": trade_decision,
+        "ATR_TRAIL_LONG": [LONG_TRAIL_STOP, is_hit_LONG],
+        "ATR_TRAIL_SHORT": [SHORT_TRAIL_STOP, is_hit_SHORT],
         "tf_match": tf_match
     }
 
-# -------- Trading Engine: single trade only --------
-TRAILING_STOP_PERCENT = 0.5  # Trailing stop % for Binance
+# -------- ATR Tailing Sytem Engine  --------
+def long_trailing_atr(atr_map, current_price):
+    global LONG_TRAIL_STOP
+    atr_strength, atr = atr_map
+
+    if atr_strength == "LOW":
+        ATR_MULTIPLIER = 3.0
+    elif atr_strength == "MEDIUM":
+        ATR_MULTIPLIER = 2.0
+    elif atr_strength == "HIGH":
+        ATR_MULTIPLIER = 1.5
+    else:
+        ATR_MULTIPLIER = 2.0  # safe default
+
+    if atr is None or current_price is None:
+        return LONG_TRAIL_STOP, "TRAIL"
+
+    distance = atr * ATR_MULTIPLIER
+    new_stop = current_price - distance
+
+    if LONG_TRAIL_STOP is None:
+        LONG_TRAIL_STOP = new_stop
+        return LONG_TRAIL_STOP, "TRAIL"
+
+    # Update trailing normally
+    LONG_TRAIL_STOP = max(LONG_TRAIL_STOP, new_stop)
+
+    # If hit → reset immediately
+    if current_price <= LONG_TRAIL_STOP:
+        hit_stop = LONG_TRAIL_STOP
+        LONG_TRAIL_STOP = None
+        return hit_stop, "HIT"
+
+    return LONG_TRAIL_STOP, "TRAIL"
+
+
+def short_trailing_atr(atr_map, current_price):
+    global SHORT_TRAIL_STOP
+
+    atr_strength, atr = atr_map
+
+    if atr_strength == "LOW":
+        ATR_MULTIPLIER = 3.0
+    elif atr_strength == "MEDIUM":
+        ATR_MULTIPLIER = 2.0
+    elif atr_strength == "HIGH":
+        ATR_MULTIPLIER = 1.5
+    else:
+        ATR_MULTIPLIER = 2.0  # safe default
+
+    if atr is None or current_price is None:
+        return SHORT_TRAIL_STOP, "TRAIL"
+
+    distance = atr * ATR_MULTIPLIER
+    new_stop = current_price + distance
+
+    if SHORT_TRAIL_STOP is None:
+        SHORT_TRAIL_STOP = new_stop
+        return SHORT_TRAIL_STOP, "TRAIL"
+
+    SHORT_TRAIL_STOP = min(SHORT_TRAIL_STOP, new_stop)
+
+    if current_price >= SHORT_TRAIL_STOP:
+        hit_stop = SHORT_TRAIL_STOP
+        SHORT_TRAIL_STOP = None
+        return hit_stop, "HIT"
+
+    return SHORT_TRAIL_STOP, "TRAIL"
+
 
 # -------- Helper: get current position --------
 def get_current_position(symbol):
@@ -340,115 +421,6 @@ def execute_single_trade(symbol, quantity=QTY_DEFAULT):
     
     if TRADE_BOT != "on":
         return "TRADEBOT = Off"
-
-    try:
-        # Get current position
-        position_amt = get_current_position(symbol)
-
-        # ---- ATR AND ADXFilter ----
-        atr_strength = atr_strength_map['15m']
-        adx_strength = adx_strength_map['15m']
-        if atr_strength.upper() == "LOW" or adx_strength.upper() == "weak":  # adjust threshold
-            return f"ATR TOO ({atr_strength}), ADX TOO ({adx_strength}), skipping trade"
-        
-        if new_trend == None:
-            return f"Trend is old, New Trend is ({new_trend})"
-
-        # ---- STRONG BULLISH ----
-        if new_trend == "STRONG_BULLISH" and tf_match == "STRONG_BULLISH":
-            # Already in LONG? skip duplicate
-            if position_amt > 0:
-                return "Already in LONG, skipping duplicate"
-
-            # Close SHORT if any
-            if position_amt < 0:
-                client.futures_create_order(
-                    symbol=symbol,
-                    side="BUY",
-                    type="MARKET",
-                    quantity=abs(position_amt)
-                )
-
-            # Open LONG
-            client.futures_create_order(
-                symbol=symbol,
-                side="BUY",
-                type="MARKET",
-                quantity=quantity
-            )
-
-            # Add trailing stop
-            client.futures_create_order(
-                symbol=symbol,
-                side="SELL",
-                type="TRAILING_STOP_MARKET",
-                quantity=quantity,
-                callbackRate=TRAILING_STOP_PERCENT,
-                reduceOnly=True
-            )
-
-            return "Opened LONG with trailing stop"
-
-        # ---- STRONG BEARISH ----
-        elif new_trend  == "STRONG_BEARISH" and tf_match == "STRONG_BEARISH":
-            # Already in SHORT? skip duplicate
-            if position_amt < 0:
-                return "Already in SHORT, skipping duplicate"
-
-            # Close LONG if any
-            if position_amt > 0:
-                client.futures_create_order(
-                    symbol=symbol,
-                    side="SELL",
-                    type="MARKET",
-                    quantity=abs(position_amt)
-                )
-
-            # Open SHORT
-            client.futures_create_order(
-                symbol=symbol,
-                side="SELL",
-                type="MARKET",
-                quantity=quantity
-            )
-
-            # Add trailing stop
-            client.futures_create_order(
-                symbol=symbol,
-                side="BUY",
-                type="TRAILING_STOP_MARKET",
-                quantity=quantity,
-                callbackRate=TRAILING_STOP_PERCENT,
-                reduceOnly=True
-            )
-
-            return "Opened SHORT with trailing stop"
-
-        # ---- NO ALIGNMENT / CLOSE POSITIONS ----
-        else:
-            if position_amt > 0:
-                client.futures_create_order(
-                    symbol=symbol,
-                    side="SELL",
-                    type="MARKET",
-                    quantity=abs(position_amt)
-                )
-                return "Closed LONG"
-
-            elif position_amt < 0:
-                client.futures_create_order(
-                    symbol=symbol,
-                    side="BUY",
-                    type="MARKET",
-                    quantity=abs(position_amt)
-                )
-                return "Closed SHORT"
-
-            else:
-                return "No position, nothing to do"
-
-    except Exception as e:
-        return f"Trade Error: {str(e)}"
 
 # -------- Summary Engine: single trade only --------
 

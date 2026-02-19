@@ -47,6 +47,10 @@
         >
           <p class="text-slate-400 text-xs">Recent Price</p>
           <p id="recentPrice" class="text-xl font-semibold mt-2">Loading...</p>
+          <p class="text-slate-400 text-xs">LONG ATR Trailing</p>
+          <p id="longAtrTrail" class="text-xl font-semibold mt-2">Loading...</p>
+          <p class="text-slate-400 text-xs">SHORT ATR Trailing</p>
+          <p id="shortAtrTrail" class="text-xl font-semibold mt-2">Loading...</p>
         </div>
       </div>
 
@@ -236,6 +240,8 @@
           updateColored("tradeAction", data.trade_action);
           updateText("timeSummary", formatTimeSummary(data.times));
           updateText("tradeSummary", formatSummary(data.summary));
+          update("shortAtrTrail", data.ATR_TRAIL_SHORT);
+          update("longAtrTrail", data.ATR_TRAIL_LONG);
           update("recentPrice", data.price);
 
         } catch (err) {
@@ -261,7 +267,9 @@
         if (
           signal.includes("LONG") ||
           signal.includes("BULL") ||
+          signal.includes("BULLISH") ||
           signal.includes("STRONG") ||
+          signal.includes("TRAIL") ||
           signal.includes("OVERSOLD")
         )
           return "text-emerald-400 font-semibold";
@@ -269,7 +277,9 @@
         if (
           signal.includes("SHORT") ||
           signal.includes("BEAR") ||
+          signal.includes("BEARISH") ||
           signal.includes("WEAK") ||
+          signal.includes("HIT") ||
           signal.includes("OVERBOUGHT")
         )
           return "text-rose-400 font-semibold";
@@ -290,7 +300,7 @@
         fetchTrend();
       });
 
-      setInterval(fetchTrend, 30000);
+      setInterval(fetchTrend, 10000);
     </script>
   </body>
 </html>
