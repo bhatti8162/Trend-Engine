@@ -31,7 +31,6 @@ def check_trend_engine(symbol):
     LONG_TRAIL_STOP, is_hit_LONG = long_trailing_atr(atr_strength_map["1m"],round(price_cache))
     SHORT_TRAIL_STOP, is_hit_SHORT = short_trailing_atr(atr_strength_map["1m"],round(price_cache))
 
-    print(sl_hunt_long_level, sl_hunt_short_level)
     return {
         "times": times,
         "symbol": symbol,
