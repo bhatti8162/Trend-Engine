@@ -28,7 +28,7 @@ def execute_single_trade(client,symbol, quantity=QTY_DEFAULT):
     - Only one active position at a time
     - Adds trailing stop
     """
-    times, symbol, price_cache,trend_map,atr_strength_map, adx_strength_map, rsi_strength_map, tf_match, new_trend = tf_map_on_trend_values(client,symbol)
+    times, symbol, price_cache,trend_map, ema_trend_map, vwap_trend_map, atr_strength_map, adx_strength_map, rsi_strength_map, tf_match, new_trend = tf_map_on_trend_values(client,symbol)
 
     # print(f"TRADE_BOT:{TRADE_BOT} tf_match:{tf_match} new_trend:{new_trend} ATR:{atr_strength_map['15m']} ADX:{adx_strength_map['15m']}  xxxxxxXXXXXXXXXXXXXXxxxxx")
     

@@ -32,9 +32,10 @@ function formatTimeSummary(times) {
   return `
             <div>UTC: ${utc}</div>
             <div>PK: ${pk}</div>
+            </br>
+            <div>Tokyo: ${tokyo}</div>
             <div>London: ${london}</div>
             <div>New York: ${newYork}</div>
-            <div>Tokyo: ${tokyo}</div>
         `;
 }
 
@@ -50,22 +51,25 @@ async function fetchTrend() {
     const res = await fetch(`/api/trend?symbol=${symbol}`);
     const data = await res.json();
 
-    update("tfMatch", data.tf_match);
+    // update("tfMatch", data.tf_match);
     update("tradeDecision", data.trade_decision);
     update("trend1m", data.trends?.["1m"]);
     update("trend5m", data.trends?.["5m"]);
     update("trend15m", data.trends?.["15m"]);
 
     update("adx1m", data.adx_strength?.["1m"]);
-    update("adx5m", data.adx_strength?.["5m"]);
-    update("adx15m", data.adx_strength?.["15m"]);
+    // update("adx5m", data.adx_strength?.["5m"]);
+    // update("adx15m", data.adx_strength?.["15m"]);
+
+    update("ema1m", data.ema_strength?.["1m"]);
+    update("vwap1m", data.vwap_strength?.["1m"]);
 
     update("atr1m", data.atr_strength?.["1m"]);
-    update("atr5m", data.atr_strength?.["5m"]);
+    // update("atr5m", data.atr_strength?.["5m"]);
     update("atr15m", data.atr_strength?.["15m"]);
 
-    update("rsi1m", data.rsi_strength?.["1m"]);
-    update("rsi5m", data.rsi_strength?.["5m"]);
+    // update("rsi1m", data.rsi_strength?.["1m"]);
+    // update("rsi5m", data.rsi_strength?.["5m"]);
     update("rsi15m", data.rsi_strength?.["15m"]);
 
     updateColored("tradeAction", data.trade_action);
@@ -99,6 +103,9 @@ function getColor(signal) {
     signal.includes("BULL") ||
     signal.includes("BULLISH") ||
     signal.includes("STRONG") ||
+    signal.includes("ABOVE") ||
+    signal.includes("HIGH") ||
+    signal.includes("UP") ||
     signal.includes("TRAIL") ||
     signal.includes("OVERSOLD")
   )
@@ -109,6 +116,9 @@ function getColor(signal) {
     signal.includes("BEAR") ||
     signal.includes("BEARISH") ||
     signal.includes("WEAK") ||
+    signal.includes("BELOW") ||
+    signal.includes("LOW") ||
+    signal.includes("DOWN") ||
     signal.includes("HIT") ||
     signal.includes("OVERBOUGHT")
   )

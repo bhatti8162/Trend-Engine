@@ -22,7 +22,7 @@ else:
 def check_trend_engine(symbol):
 
     # TimeFrames Mappings
-    times, symbol, price_cache, trend_map,atr_strength_map, adx_strength_map, rsi_strength_map, tf_match, new_trend= tf_map_on_trend_values(client,symbol)
+    times, symbol, price_cache, trend_map, ema_trend_map, vwap_trend_map, atr_strength_map, adx_strength_map, rsi_strength_map, tf_match, new_trend= tf_map_on_trend_values(client,symbol)
 
     # Final Trade Decisions
     trade_decision = get_decision_on_signal(trend_map, atr_strength_map, adx_strength_map, rsi_strength_map)
@@ -39,6 +39,8 @@ def check_trend_engine(symbol):
         "atr_strength": atr_strength_map,
         "adx_strength": adx_strength_map,
         "rsi_strength": rsi_strength_map,
+        "ema_strength": ema_trend_map,
+        "vwap_strength": vwap_trend_map,
         "trade_decision": trade_decision,
         "ATR_TRAIL_LONG": [LONG_TRAIL_STOP, is_hit_LONG],
         "ATR_TRAIL_SHORT": [SHORT_TRAIL_STOP, is_hit_SHORT],

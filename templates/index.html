@@ -33,12 +33,6 @@
           </p>
         </div>
       </div>
-      <div class="bg-slate-900/80 backdrop-blur-md p-5 rounded-xl border border-slate-800">
-        <div class="bg-slate-900/80 backdrop-blur-md p-5 rounded-xl border border-slate-800">
-          <p class="text-slate-400 text-xs">Multi TF Alignment</p>
-          <p id="tfMatch" class="text-lg font-semibold mt-2">Loading...</p>
-        </div>
-      </div>
 
       <div class="bg-slate-900/80 backdrop-blur-md p-5 rounded-xl border border-slate-800">
         <p class="text-slate-400 text-xs">SHORT ATR Trailing</p>
@@ -53,6 +47,28 @@
         </div>
         <p class="text-slate-400 text-xs">LONG ATR Trailing</p>
         <p id="longAtrTrail" class="text-xl font-semibold mt-2">Loading...</p>
+      </div>
+      
+      <div class="bg-slate-900/80 backdrop-blur-md p-5 rounded-xl border border-slate-800">
+        <h2 class="text-slate-300 text-xs font-semibold tracking-wide">
+          1m Indicator
+        </h2>
+        <div class="flex justify-between">
+          <span class="text-slate-400">ADX 1m</span>
+          <span id="adx1m" class="font-medium">--</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">VWAP 1m</span>
+          <span id="vwap1m" class="font-medium">--</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">EMA 1m</span>
+          <span id="ema1m" class="font-medium">--</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">ATR 1m</span>
+          <span id="atr1m" class="font-medium">--</span>
+        </div>
       </div>
     </div>
 
@@ -77,59 +93,18 @@
         </div>
       </div>
 
-      <!-- ADX -->
+      <!-- !5m Indicators -->
       <div class="bg-slate-900/80 backdrop-blur-md p-5 rounded-xl border border-slate-800 space-y-3">
         <h2 class="text-slate-300 text-xs font-semibold tracking-wide">
-          ADX
+          15m Indicator
         </h2>
         <div class="flex justify-between">
-          <span class="text-slate-400">1m</span>
-          <span id="adx1m" class="font-medium">--</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-400">5m</span>
-          <span id="adx5m" class="font-medium">--</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-400">15m</span>
-          <span id="adx15m" class="font-medium">--</span>
-        </div>
-      </div>
-
-      <!-- ATR -->
-      <div class="bg-slate-900/80 backdrop-blur-md p-5 rounded-xl border border-slate-800 space-y-3">
-        <h2 class="text-slate-300 text-xs font-semibold tracking-wide">
-          ATR
-        </h2>
-        <div class="flex justify-between">
-          <span class="text-slate-400">1m</span>
-          <span id="atr1m" class="font-medium">--</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-400">5m</span>
-          <span id="atr5m" class="font-medium">--</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-400">15m</span>
+          <span class="text-slate-400">ATR 15m</span>
           <span id="atr15m" class="font-medium">--</span>
         </div>
-      </div>
-
-      <!-- RSI -->
-      <div class="bg-slate-900/80 backdrop-blur-md p-5 rounded-xl border border-slate-800 space-y-3">
-        <h2 class="text-slate-300 text-xs font-semibold tracking-wide">
-          RSI
-        </h2>
+        
         <div class="flex justify-between">
-          <span class="text-slate-400">1m</span>
-          <span id="rsi1m" class="font-medium">--</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-400">5m</span>
-          <span id="rsi5m" class="font-medium">--</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-400">15m</span>
+          <span class="text-slate-400">RSI 15m</span>
           <span id="rsi15m" class="font-medium">--</span>
         </div>
       </div>

@@ -74,6 +74,22 @@ def trend_values_of_indicators(df):
     else:
         rsi_level = "NEUTRAL"
 
+    # ----- EMA TREND -----
+    if last['ema_slope'] > 0:
+        ema_trend = "UP"
+    elif last['ema_slope'] < 0:
+        ema_trend = "DOWN"
+    else:
+        ema_trend = "FLAT"
+
+    # ----- VWAP TREND -----
+    if last['close'] > last['vwap']:
+        vwap_trend = "ABOVE"
+    elif last['close'] < last['vwap']:
+        vwap_trend = "BELOW"
+    else:
+        vwap_trend = "AT"
+
     # ----- TREND -----
     if last['ma50'] > last['ma100']:
         trend = "BULLISH"
@@ -82,13 +98,15 @@ def trend_values_of_indicators(df):
     else:
         trend = None
 
-    return trend, [atr, round(atx_value)] , [adx, round(adx_value)] , [rsi_level, round(rsi_value)] 
+    return trend, ema_trend, vwap_trend, [atr, round(atx_value)] , [adx, round(adx_value)] , [rsi_level, round(rsi_value)] 
 
 
 
 # -------- Core Engine --------
 def tf_map_on_trend_values(client,symbol):
     trend_map = OrderedDict()
+    ema_trend_map = OrderedDict()
+    vwap_trend_map = OrderedDict()
     atr_strength_map = OrderedDict()
     adx_strength_map= OrderedDict()
     rsi_strength_map= OrderedDict()
@@ -103,8 +121,10 @@ def tf_map_on_trend_values(client,symbol):
             atr_strength_map[tf] = "ERROR"
             continue
 
-        trend, atr, adx, rsi = trend_values_of_indicators(df)
+        trend, ema_trend, vwap_trend, atr, adx, rsi = trend_values_of_indicators(df)
         trend_map[tf] = trend
+        ema_trend_map[tf] = ema_trend
+        vwap_trend_map[tf] = vwap_trend
         atr_strength_map[tf] = atr
         adx_strength_map[tf] = adx
         rsi_strength_map[tf] = rsi
@@ -136,7 +156,7 @@ def tf_map_on_trend_values(client,symbol):
         ("New_York", format_time(now, "America/New_York")),
         ("Tokyo", format_time(now, "Asia/Tokyo"))
     ])
-    return times, symbol, price_cache, trend_map, atr_strength_map, adx_strength_map, rsi_strength_map, tf_match, new_trend
+    return times, symbol, price_cache, trend_map, ema_trend_map, vwap_trend_map, atr_strength_map, adx_strength_map, rsi_strength_map, tf_match, new_trend
 
 
 def get_decision_on_signal(trend_map, atr_map, adx_map, rsi_map):
@@ -150,7 +170,7 @@ def get_decision_on_signal(trend_map, atr_map, adx_map, rsi_map):
 
     atr15 = atr_map.get("15m")
     adx15 = adx_map.get("15m")
-    rsi1  = rsi_map.get("1m")
+    rsi1  = rsi_map.get("15m")
 
     if not all([t15, t5, t1, atr15, adx15, rsi1]):
         return "NONE"
@@ -161,23 +181,23 @@ def get_decision_on_signal(trend_map, atr_map, adx_map, rsi_map):
 
     # === Market must be alive ===
     if atr_state == "LOW":
-        return "NONE"
+        return "ATR 15m is Low"
 
     if adx_state == "WEAK" or adx_value < 20:
-        return "NONE"
+        return "ADX 15m is Low"
 
     # ================= LONG =================
     if t15 == "BULLISH" and t5 == "BULLISH":
 
         # wait for 1m pullback
-        if t1 == "BEARISH" or rsi_value < 40:
+        if rsi_value < 40:
             return "LONG"
 
     # ================= SHORT =================
     if t15 == "BEARISH" and t5 == "BEARISH":
 
         # wait for 1m bounce
-        if t1 == "BULLISH" or rsi_value > 60:
+        if rsi_value > 60:
             return "SHORT"
 
     return "NONE"

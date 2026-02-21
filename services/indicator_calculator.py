@@ -50,6 +50,15 @@ def calculate_indicators(
     df['ma50'] = df['close'].rolling(window=ma50_period).mean()
     df['ma100'] = df['close'].rolling(window=ma100_period).mean()
 
+    # ===== 21 EMA =====
+    df['ema21'] = df['close'].ewm(span=21, adjust=False).mean()
+    df['ema_slope'] = df['ema21'].diff()
+
+    # ----- VWAP -----
+    df['cum_vol'] = df['volume'].cumsum()
+    df['cum_vol_price'] = (df['close'] * df['volume']).cumsum()
+    df['vwap'] = df['cum_vol_price'] / df['cum_vol']
+
     return df
 
     """
