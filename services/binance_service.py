@@ -10,7 +10,7 @@ def get_binance_client():
     Returns:
         client (Client) if authenticated, else None
     """
-    client = Client(API_KEY, API_SECRET, testnet=true)
+    client = Client(API_KEY, API_SECRET, testnet=True)
     # Set futures testnet URL
     client.FUTURES_URL = "https://testnet.binancefuture.com/fapi"
 
