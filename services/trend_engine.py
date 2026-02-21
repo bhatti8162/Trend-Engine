@@ -9,6 +9,7 @@ from collections import OrderedDict
 import os
 
 LAST_TF_MATCH = None
+LAST_VWAP = None
 
 LONG_TRAIL_STOP = None
 SHORT_TRAIL_STOP = None
@@ -83,9 +84,19 @@ def trend_values_of_indicators(df):
         ema_trend = "FLAT"
 
     # ----- VWAP TREND -----
-    if last['close'] > last['vwap']:
+    # Compute median VWAP and threshold (optional for spikes)
+    median_vwap = df['vwap'].median()
+    global LAST_VWAP
+    # Initialize LAST_VWAP if it's None
+    if LAST_VWAP is None:
+        LAST_VWAP = last['vwap']
+    # Only update LAST_VWAP if current VWAP is lower than last
+    if last['vwap'] < LAST_VWAP:
+        LAST_VWAP = last['vwap']
+        
+    if last['close'] > LAST_VWAP:
         vwap_trend = "ABOVE"
-    elif last['close'] < last['vwap']:
+    elif last['close'] < LAST_VWAP:
         vwap_trend = "BELOW"
     else:
         vwap_trend = "AT"

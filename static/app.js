@@ -41,7 +41,7 @@ function formatTimeSummary(data) {
     };
 
     return `
-      <div class="bg-slate-900 text-white p-6 rounded-xl shadow-lg space-y-4 w-80">
+      
         <div class="text-sm">
           <strong>UTC:</strong> <span class="text-indigo-400">${utc}</span>
         </div>
@@ -68,7 +68,6 @@ function formatTimeSummary(data) {
           <br/>
           <span class="text-slate-400">(${formatSession(sessions.New_York)})</span>
         </div>
-      </div>
     `;
 }
 function updateText(id, value) {
@@ -100,7 +99,7 @@ async function fetchTrend() {
     // update("atr5m", data.atr_strength?.["5m"]);
     update("atr15m", data.atr_strength?.["15m"]);
 
-    // update("rsi1m", data.rsi_strength?.["1m"]);
+    update("rsi1m", data.rsi_strength?.["1m"]);
     // update("rsi5m", data.rsi_strength?.["5m"]);
     update("rsi15m", data.rsi_strength?.["15m"]);
 
