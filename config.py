@@ -11,6 +11,6 @@ QTY_DEFAULT = 0.001
 MA_FAST = 50
 MA_SLOW = 100
 LIMIT = 200
-TIMEFRAMES = ["15m", "5m", "1m"]
+TIMEFRAMES = ["1h","15m", "5m", "1m"]
 
 TRADE_BOT = "off"

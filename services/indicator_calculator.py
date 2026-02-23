@@ -1,6 +1,4 @@
-import pandas as pd
 import numpy as np
-
 
 def calculate_indicators(
     df,
@@ -52,21 +50,59 @@ def calculate_indicators(
     df['ma50'] = df['close'].rolling(window=ma50_period).mean()
     df['ma100'] = df['close'].rolling(window=ma100_period).mean()
 
-    # ===== 21 EMA =====
-    df['ema21'] = df['close'].ewm(span=21, adjust=False).mean()
+    # ===== 25 EMA =====
+    df['ema21'] = df['close'].ewm(span=25, adjust=False).mean()
     df['ema_slope'] = df['ema21'].diff()
 
     # ----- VWAP -----
-    df['time'] = pd.to_datetime(df['time'], unit='ms')
-    df.set_index('time', inplace=True)
-    for col in ['open', 'high', 'low', 'close', 'volume']:
-        df[col] = df[col].astype(float)
-
-    # Calculate standard VWAP
-    # Convert time to datetime if not already
-    df['tp'] = (df['high'] + df['low'] + df['close']) / 3
-    df['cum_vol'] = df.groupby(df.index.date)['volume'].cumsum()
-    df['cum_vol_price'] = (df['tp'] * df['volume']).groupby(df.index.date).cumsum()
+    df['cum_vol'] = df['volume'].cumsum()
+    df['cum_vol_price'] = (df['close'] * df['volume']).cumsum()
     df['vwap'] = df['cum_vol_price'] / df['cum_vol']
 
     return df
+
+    """
+    Returns:
+    - sl_hunt_long_level  -> strongest liquidity BELOW price
+    - sl_hunt_short_level -> strongest liquidity ABOVE price
+    """
+
+    book = client.get_order_book(symbol=symbol, limit=depth)
+
+    bids = np.array(book['bids'], dtype=float)
+    asks = np.array(book['asks'], dtype=float)
+
+    if len(bids) == 0 or len(asks) == 0:
+        return None, None
+
+    bid_price = bids[0][0]
+    ask_price = asks[0][0]
+    mid_price = (bid_price + ask_price) / 2
+
+    # ----- FILTER BELOW PRICE (long stops) -----
+    bid_zone = bids[
+        (bids[:,0] < mid_price * (1 - min_distance_pct)) &
+        (bids[:,0] > mid_price * (1 - max_distance_pct))
+    ]
+
+    # ----- FILTER ABOVE PRICE (short stops) -----
+    ask_zone = asks[
+        (asks[:,0] > mid_price * (1 + min_distance_pct)) &
+        (asks[:,0] < mid_price * (1 + max_distance_pct))
+    ]
+
+    # If no liquidity in zone, expand search automatically
+    if len(bid_zone) == 0:
+        bid_zone = bids[bids[:,0] < mid_price]
+
+    if len(ask_zone) == 0:
+        ask_zone = asks[asks[:,0] > mid_price]
+
+    # Pick strongest liquidity level (max quantity)
+    strongest_bid = bid_zone[np.argmax(bid_zone[:,1])]
+    strongest_ask = ask_zone[np.argmax(ask_zone[:,1])]
+
+    sl_hunt_long_level = float(strongest_bid[0])
+    sl_hunt_short_level = float(strongest_ask[0])
+
+    return sl_hunt_long_level, sl_hunt_short_level

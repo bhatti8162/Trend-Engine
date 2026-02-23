@@ -1,139 +1,217 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8" />
-  <title>Trend Engine Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Short Engine</title>
+<style>
+  body {
+    background: #000;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+  .header {
+    padding: 20px;
+    text-align: center;
+    background: #111;
+    border-bottom: 1px solid #222;
+  }
+  #symbol {
+    font-size: 28px;
+    font-weight: bold;
+  }
+  #price {
+    font-size: 24px;
+    margin-top: 5px;
+  }
+  #decision {
+    font-size: 20px;
+    margin-top: 5px;
+    color: #ff4444;
+    font-weight: bold;
+  }
+  .tf-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 10px;
+  }
+  .tf-card {
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px;
+    min-width: 180px;
+  }
+  .tf-card h3 {
+    margin: 0 0 10px 0;
+    text-align: center;
+  }
+  .green { color: #00ff88; }
+  .red { color: #ff4444; }
+  .gray { color: #999; }
+  .times {
+    padding: 20px;
+    text-align: center;
+  }
+  .loading {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .loading img {
+    width: 60px;
+  }
+  .input-container {
+    text-align: center;
+    padding: 10px;
+  }
+  #symbol-input {
+    padding: 6px 8px;
+    font-size: 16px;
+    margin-right: 10px;
+    background: #111;
+    color: #fff;
+    border: 1px solid #222;
+  }
+  #load-btn {
+    padding: 6px 12px;
+    background: #111;
+    color: #fff;
+    border: 1px solid #222;
+  }
+  #load-btn:hover {
+    cursor: pointer;
+    background: #222;
+  }
+</style>
 </head>
+<body>
 
-<body class="bg-slate-950 text-white min-h-screen">
-  <div class="max-w-6xl mx-auto px-6 py-8 space-y-8 text-sm">
-    <!-- Header -->
-    <div class="flex justify-between items-center">
-      <h1 class="text-2xl font-semibold text-cyan-400 tracking-wide">
-        Trend Engine
-      </h1>
+<div class="header">
+  <div id="symbol">--</div>
+  <div id="price">--</div>
+  <div id="decision">--</div>
+</div>
 
-      <select id="symbolSelect" class="bg-slate-800 border border-slate-700 px-3 py-2 rounded-lg text-sm text-white">
-        <option value="BTCUSDT">BTCUSDT</option>
-        <option value="ETHUSDT">ETHUSDT</option>
-        <option value="BNBUSDT">BNBUSDT</option>
-        <option value="SOLUSDT">SOLUSDT</option>
-      </select>
-    </div>
+<div class="input-container">
+  <input type="text" id="symbol-input" placeholder="Enter symbol e.g. BTCUSDT">
+  <button id="load-btn">Load</button>
+</div>
 
-    <!-- Top Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div class="bg-slate-900/80 backdrop-blur-md p-5 rounded-xl border border-slate-800">
-        <div class="bg-slate-900/80 backdrop-blur-md p-5 rounded-xl border border-slate-800">
-          <p class="text-slate-400 text-xs">Trade Decision</p>
-          <p id="tradeDecision" class="text-lg font-semibold mt-2">
-            Loading...
-          </p>
-        </div>
-      </div>
+<div class="tf-container" id="tf-container"></div>
 
-      <div class="bg-slate-900/80 backdrop-blur-md p-5 rounded-xl border border-slate-800">
-        <p class="text-slate-400 text-xs">SHORT ATR Trailing</p>
-        <p id="shortAtrTrail" class="text-xl font-semibold mt-2">
-          Loading...
-        </p>
-        <div class="bg-slate-900/80 backdrop-blur-md p-2 m-2 rounded-xl border border-slate-800">
-          <p class="text-slate-400 text-x1">Recent Price</p>
-          <p id="recentPrice" class="text-xl font-semibold mt-2">
-            Loading...
-          </p>
-        </div>
-        <p class="text-slate-400 text-xs">LONG ATR Trailing</p>
-        <p id="longAtrTrail" class="text-xl font-semibold mt-2">Loading...</p>
-      </div>
-      
-      <div class="bg-slate-900/80 backdrop-blur-md p-5 rounded-xl border border-slate-800">
-        <h2 class="text-slate-300 text-xs font-semibold tracking-wide">
-          1m Indicator
-        </h2>
-        <div class="flex justify-between">
-          <span class="text-slate-400">ADX 1m</span>
-          <span id="adx1m" class="font-medium">--</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-400">VWAP 1m</span>
-          <span id="vwap1m" class="font-medium">--</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-400">EMA 1m</span>
-          <span id="ema1m" class="font-medium">--</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-400">RSI 1m</span>
-          <span id="rsi1m" class="font-medium">--</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-400">ATR 1m</span>
-          <span id="atr1m" class="font-medium">--</span>
-        </div>
-      </div>
-    </div>
+<div class="times" id="times"></div>
 
-    <!-- Indicators -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-      <!-- Trend -->
-      <div class="bg-slate-900/80 backdrop-blur-md p-5 rounded-xl border border-slate-800 space-y-3">
-        <h2 class="text-slate-300 text-xs font-semibold tracking-wide">
-          Trend
-        </h2>
-        <div class="flex justify-between">
-          <span class="text-slate-400">1m</span>
-          <span id="trend1m" class="font-medium">--</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-400">5m</span>
-          <span id="trend5m" class="font-medium">--</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-400">15m</span>
-          <span id="trend15m" class="font-medium">--</span>
-        </div>
-      </div>
+<div class="loading" id="loading">
+  <img src="https://i.gifer.com/ZZ5H.gif" alt="Loading...">
+</div>
 
-      <!-- !5m Indicators -->
-      <div class="bg-slate-900/80 backdrop-blur-md p-5 rounded-xl border border-slate-800 space-y-3">
-        <h2 class="text-slate-300 text-xs font-semibold tracking-wide">
-          15m Indicator
-        </h2>
-        <div class="flex justify-between">
-          <span class="text-slate-400">ATR 15m</span>
-          <span id="atr15m" class="font-medium">--</span>
-        </div>
-        
-        <div class="flex justify-between">
-          <span class="text-slate-400">RSI 15m</span>
-          <span id="rsi15m" class="font-medium">--</span>
-        </div>
-      </div>
+<script>
+async function loadTrend(symbol = "BTC") {
+  showLoading(true);
+  try {
+    const res = await fetch(`/api/trend?symbol=${symbol}USDT`);
+    const data = await res.json();
 
-      <!-- Time Summary -->
-      <div class="bg-slate-900 text-white p-6 rounded-xl shadow-lg space-y-4 w-80">
-        <p id="timeSummary">
-          Loading...
-        </p>
-      </div>
-      </div>
-    <!-- </br> -->
-      <!-- BOT Summary -->
-      <div id="TradeDiv" class="bg-slate-900/80 backdrop-blur-md p-5 rounded-xl border border-slate-800">
-        <p class="text-slate-400 text-xs">Trade Status</p>
-        <p id="tradeAction" class="text-base font-semibold mt-2">
-          Loading...
-        </p>
-        <p id="tradeSummary" class="text-xs text-slate-400 mt-2 font-mono">
-          Loading...
-        </p>
-      </div>
-    </div>
-  </div>
-  <script src="{{ url_for('static', filename='app.js') }}"></script>
+    renderHeader(data);
+    renderTimeframes(data);
+    renderTimes(data);
+
+  } catch (err) {
+    console.error("API Error:", err);
+  }
+  showLoading(false);
+}
+
+function renderHeader(data) {
+  document.getElementById("symbol").innerText = data.symbol || "--";
+  document.getElementById("price").innerText = data.price || "--";
+  document.getElementById("decision").innerText = data.trade_decision || "--";
+}
+
+function renderTimeframes(data) {
+  const container = document.getElementById("tf-container");
+  container.innerHTML = "";
+
+  if (!data.trends) return;
+
+  // Order of timeframes
+  const orderedTimeframes = ["1h", "15m", "5m", "1m"];
+
+  orderedTimeframes.forEach(tf => {
+    if (!data.trends[tf]) return; // skip if missing
+
+    const trend = data.trends[tf] || "--";
+    const ema = data.ema25_strength[tf] || "--";
+    const vwap = data.vwap_strength[tf] || "--";
+    const rsi = data.rsi_strength[tf] || ["--", "--"];
+    const adx = data.adx_strength[tf] || ["--", "--"];
+    const atr = data.atr_strength[tf] || ["--", "--"];
+
+    const card = document.createElement("div");
+    card.className = "tf-card";
+
+    card.innerHTML = `
+      <h3>${tf}</h3>
+      <p>Trend: <span class="${colorTrend(trend)}">${trend}</span></p>
+      <p>EMA25: <span class="${colorTrend(ema)}">${ema}</span></p>
+      <p>VWAP: <span class="${colorVWAP(vwap)}">${vwap}</span></p>
+      <p>RSI: ${rsi[0]} (${rsi[1]})</p>
+      <p>ADX: ${adx[0]} (${adx[1]})</p>
+      <p>ATR: ${atr[0]} (${atr[1]})</p>
+    `;
+
+    container.appendChild(card);
+  });
+}
+
+function renderTimes(data) {
+  const container = document.getElementById("times");
+  container.innerHTML = "";
+  if (!data.times) return;
+
+  // Define the desired order
+  const order = ["UTC", "PK", "Tokyo", "London", "NewYork"];
+
+  // Loop in the specified order
+  order.forEach((key) => {
+    if (data.times[key]) {
+      const row = document.createElement("div");
+      row.innerHTML = `<b>${key}:</b> ${data.times[key]}`;
+      container.appendChild(row);
+    }
+  });
+}
+
+function colorTrend(value) {
+  if (!value) return "gray";
+  if (["UP", "BULLISH", "ABOVE"].includes(value)) return "green";
+  if (["DOWN", "BEARISH", "BELOW"].includes(value)) return "red";
+  return "gray";
+}
+
+function colorVWAP(value) {
+  return value === "ABOVE" ? "green" : "red";
+}
+
+function showLoading(state) {
+  document.getElementById("loading").style.display = state ? "block" : "none";
+}
+
+// Button click to load symbol
+document.getElementById("load-btn").addEventListener("click", () => {
+  const symbol = document.getElementById("symbol-input").value.trim().toUpperCase();
+  if (symbol) loadTrend(symbol);
+});
+
+// initial load
+loadTrend();
+</script>
 </body>
-
 </html>
