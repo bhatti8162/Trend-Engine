@@ -29,7 +29,7 @@
   #decision {
     font-size: 20px;
     margin-top: 5px;
-    color: #ff4444;
+    /* color: #ffff; */
     font-weight: bold;
   }
   .tf-container {
@@ -141,7 +141,7 @@ async function loadTrend(symbol = "BTCUSDT") {
 function renderHeader(data) {
   document.getElementById("symbol").innerText = data.symbol || "--";
   document.getElementById("price").innerText = data.price || "--";
-  document.getElementById("decision").innerText = data.trade_decision || "--";
+  document.getElementById("decision").innerHTML = `<p><span class="${colorTrend(data.trade_decision)}">${data.trade_decision}</span></p>` || "--";
 }
 
 function renderTimeframes(data) {
@@ -200,8 +200,13 @@ function renderTimes(data) {
 
 function colorTrend(value) {
   if (!value) return "gray";
-  if (["UP", "BULLISH", "ABOVE"].includes(value)) return "green";
-  if (["DOWN", "BEARISH", "BELOW"].includes(value)) return "red";
+
+  const greenKeywords = ["UP", "BULLISH", "Bullish", "ABOVE"];
+  const redKeywords = ["DOWN", "BEARISH", "Bearish", "BELOW"];
+
+  if (greenKeywords.some(keyword => value.includes(keyword))) return "green";
+  if (redKeywords.some(keyword => value.includes(keyword))) return "red";
+
   return "gray";
 }
 
