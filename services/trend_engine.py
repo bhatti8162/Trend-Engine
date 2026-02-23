@@ -160,45 +160,76 @@ def tf_map_on_trend_values(client,symbol):
     return times, symbol, price_cache, trend_map, ema_trend_map, vwap_trend_map, atr_strength_map, adx_strength_map, rsi_strength_map, tf_match, new_trend
 
 
-def get_decision_on_signal(trend_map, atr_map, adx_map, rsi_map):
+def get_decision_on_signal(
+        trend_map,
+        ema_trend_map,
+        vwap_trend_map,
+        atr_map,
+        adx_map,
+        rsi_map):
+
     """
-    Pullback continuation logic
+    Returns descriptive one-liner based on multi-timeframe and indicator alignment
     """
 
+    t1h = trend_map.get("1h")
     t15 = trend_map.get("15m")
     t5  = trend_map.get("5m")
-    t1  = trend_map.get("1m")
 
-    atr15 = atr_map.get("15m")
+    ema1h = ema_trend_map.get("1h")
+    ema15 = ema_trend_map.get("15m")
+
+    vwap15 = vwap_trend_map.get("15m")
+
+    atr15 = atr_map.get("15m")  # (state, value)
     adx15 = adx_map.get("15m")
-    rsi1  = rsi_map.get("15m")
+    rsi5  = rsi_map.get("5m")
 
-    if not all([t15, t5, t1, atr15, adx15, rsi1]):
-        return "NONE"
+    if not all([t1h, t15, t5, ema1h, ema15, vwap15, atr15, adx15, rsi5]):
+        return "Insufficient data to make a decision"
 
     atr_state, atr_value = atr15
-    adx_state, adx_value = adx15
-    rsi_state, rsi_value = rsi1
+    _, adx_value = adx15
+    _, rsi_value = rsi5
 
-    # === Market must be alive ===
-    if atr_state == "LOW":
-        return "ATR 15m is Low"
+    # === SIDEWAYS / LOW VOLATILITY ===
+    if atr_state == "LOW" or adx_value < 20:
+        return "Sideways / Low Volatility – avoid trading"
 
-    if adx_state == "WEAK" or adx_value < 20:
-        return "ADX 15m is Low"
+    # === CONFLICT CHECK ===
+    conflict = False
+    if (t1h == "BULLISH" and ema1h != "BULLISH") or (t1h == "BEARISH" and ema1h != "BEARISH"):
+        conflict = True
+    if conflict:
+        return "Mixed Signals – trend conflict between EMA and 1H trend"
 
-    # ================= LONG =================
-    if t15 == "BULLISH" and t5 == "BULLISH":
+    # === STRONG BULLISH ===
+    if (t1h == "BULLISH" and t15 == "BULLISH" and t5 == "BULLISH" and
+        ema1h == "BULLISH" and ema15 == "BULLISH" and vwap15 == "ABOVE" and
+        adx_value >= 25 and 40 <= rsi_value <= 55):
+        return "Strong Bullish Continuation – high confidence"
 
-        # wait for 1m pullback
-        if rsi_value < 40:
-            return "LONG"
+    # === WEAK BULLISH ===
+    if (t1h == "BULLISH" and t15 == "BULLISH" and
+        (t5 != "BULLISH" or ema15 != "BULLISH" or vwap15 != "ABOVE" or adx_value < 25 or rsi_value < 40 or rsi_value > 60)):
+        return "Weak Bullish Pullback – caution advised"
 
-    # ================= SHORT =================
-    if t15 == "BEARISH" and t5 == "BEARISH":
+    # === STRONG BEARISH ===
+    if (t1h == "BEARISH" and t15 == "BEARISH" and t5 == "BEARISH" and
+        ema1h == "BEARISH" and ema15 == "BEARISH" and vwap15 == "BELOW" and
+        adx_value >= 25 and 45 <= rsi_value <= 60):
+        return "Strong Bearish Continuation – high confidence"
 
-        # wait for 1m bounce
-        if rsi_value > 60:
-            return "SHORT"
+    # === WEAK BEARISH ===
+    if (t1h == "BEARISH" and t15 == "BEARISH" and
+        (t5 != "BEARISH" or ema15 != "BEARISH" or vwap15 != "BELOW" or adx_value < 25 or rsi_value < 35 or rsi_value > 65)):
+        return "Weak Bearish Bounce – caution advised"
 
-    return "NONE"
+    # === PULLBACK / SIDEWAYS WITH TREND ===
+    if t1h == "BULLISH" and 35 <= rsi_value <= 65:
+        return "Bullish Bias – in minor pullback or consolidation"
+
+    if t1h == "BEARISH" and 35 <= rsi_value <= 65:
+        return "Bearish Bias – in minor bounce or consolidation"
+
+    return "Unclear signals – wait for better alignment"

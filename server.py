@@ -53,22 +53,11 @@ def check_trend_engine(symbol):
 
         trade_decision = get_decision_on_signal(
             trend_map,
+            ema_trend_map,
+            vwap_trend_map,
             atr_strength_map,
             adx_strength_map,
             rsi_strength_map
-        )
-
-        # Protect against missing ATR value
-        atr_1m = atr_strength_map.get("1m", 0)
-
-        LONG_TRAIL_STOP, is_hit_LONG = long_trailing_atr(
-            atr_1m,
-            round(price_cache) if price_cache else 0
-        )
-
-        SHORT_TRAIL_STOP, is_hit_SHORT = short_trailing_atr(
-            atr_1m,
-            round(price_cache) if price_cache else 0
         )
 
         return {
@@ -142,7 +131,4 @@ def home():
 # Run App
 # -----------------------------
 if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", 5000))
-    )
+    app.run(host="0.0.0.0", debug=True)
