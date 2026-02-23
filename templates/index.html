@@ -113,10 +113,10 @@
 </div>
 
 <script>
-async function loadTrend(symbol = "BTC") {
+async function loadTrend(symbol = "BTCUSDT") {
   showLoading(true);
   try {
-    const res = await fetch(`/api/trend?symbol=${symbol}USDT`);
+    const res = await fetch(`/api/trend?symbol=${symbol}`);
     const data = await res.json();
 
     renderHeader(data);
