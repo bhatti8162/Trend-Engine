@@ -73,7 +73,7 @@ def check_trend_engine(symbol):
             "trade_decision": trade_decision,
             "tf_match": tf_match
         }
-
+        
     except Exception as e:
         print("Trend engine error:", e)
         return {

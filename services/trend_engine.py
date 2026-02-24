@@ -98,7 +98,7 @@ def trend_values_of_indicators(df):
     else:
         trend = None
 
-    return trend, ema_trend, vwap_trend, [atr, round(atx_value)] , [adx, round(adx_value)] , [rsi_level, round(rsi_value)] 
+    return trend, ema_trend, vwap_trend, [atr, f"{round(atr_percent,2)}%"] , [adx, round(adx_value)] , [rsi_level, round(rsi_value)] 
 
 
 
