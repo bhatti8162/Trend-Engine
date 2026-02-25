@@ -1,137 +1,122 @@
 def get_decision_on_signal(
-        trend_map,
-        ema_trend_map,
-        vwap_trend_map,
-        atr_map,
-        adx_map,
-        rsi_map):
-
+    trend_map,
+    ema_trend_map,
+    vwap_trend_map,
+    atr_map,
+    adx_map,
+    rsi_map
+):
     """
     Fully weighted multi-timeframe decision engine.
-    Uses every indicator + timeframe independently.
+    Uses multiple indicators independently.
     Returns: one-line description + confidence 0-10
     """
 
     # ========================
+    # WEIGHTS (displayed at top)
+    # ========================
+    # Timeframe weights (higher TF dominates)
+    tf_weights = {"1h": 1.5, "15m": 1, "5m": 0.5}
+    # Indicator multipliers
+    indicator_mult = {"trend": 1.0, "ema": 0.8, "vwap": 0.7, "adx": 0.6, "atr": 0.4, "rsi": 0.5}
+
+    # ========================
     # EXTRACT
     # ========================
-    t1h = trend_map.get("1h")
-    t15 = trend_map.get("15m")
-    t5  = trend_map.get("5m")
+    tf_list = ["1h", "15m", "5m"]
+    required = []
 
-    ema1h = ema_trend_map.get("1h")
-    ema15 = ema_trend_map.get("15m")
-    ema5  = ema_trend_map.get("5m")
+    def extract_values(map_, tfs):
+        vals = {}
+        for tf in tfs:
+            val = map_.get(tf)
+            vals[tf] = val
+            required.append(val)
+        return vals
 
-    vwap1h  = vwap_trend_map.get("1h")
-    vwap15  = vwap_trend_map.get("15m")
-    vwap5   = vwap_trend_map.get("5m")
-
-    atr1h = atr_map.get("1h")
-    atr15 = atr_map.get("15m")
-
-    adx1h = adx_map.get("1h")
-    adx15 = adx_map.get("15m")
-
-    rsi5  = rsi_map.get("5m")
-    rsi15 = rsi_map.get("15m")
-
-    required = [t1h,t15,t5,ema1h,ema15,ema5,
-                vwap1h,vwap15,vwap5,
-                atr1h,atr15,adx1h,adx15,
-                rsi5,rsi15]
+    trend = extract_values(trend_map, tf_list)
+    ema = extract_values(ema_trend_map, tf_list)
+    vwap = extract_values(vwap_trend_map, tf_list)
+    atr = extract_values({k: atr_map.get(k) for k in ["1h", "15m"]}, ["1h", "15m"])
+    adx = extract_values({k: adx_map.get(k) for k in ["1h", "15m"]}, ["1h", "15m"])
+    rsi = extract_values({k: rsi_map.get(k) for k in ["15m", "5m"]}, ["15m", "5m"])
 
     if not all(required):
         return "Insufficient data"
-
-    # ========================
-    # WEIGHTS (Higher TF stronger)
-    # ========================
-    weights = {
-        "1h": 3,
-        "15m": 2,
-        "5m": 1
-    }
 
     direction_score = 0
     environment_score = 0
     timing_score = 0
 
     # ========================
-    # TREND MAP
+    # HELPER: Score directional indicators (trend/EMA/VWAP)
     # ========================
-    for tf, value in [("1h", t1h), ("15m", t15), ("5m", t5)]:
-        if value == "BULLISH":
-            direction_score += weights[tf]
-        elif value == "BEARISH":
-            direction_score -= weights[tf]
+    def score_direction(values, mult=1.0):
+        score = 0
+        for tf, val in values.items():
+            w = tf_weights[tf] * mult
+            if val in ("BULLISH", "ABOVE"):
+                score += w
+            elif val in ("BEARISH", "BELOW"):
+                score -= w
+        return score
+
+    direction_score += score_direction(trend, indicator_mult["trend"])
+    direction_score += score_direction(ema, indicator_mult["ema"])
+    direction_score += score_direction(vwap, indicator_mult["vwap"])
 
     # ========================
-    # EMA STRUCTURE
+    # ADX (trend strength scaling)
     # ========================
-    for tf, value in [("1h", ema1h), ("15m", ema15), ("5m", ema5)]:
-        if value == "BULLISH":
-            direction_score += weights[tf] * 0.8
-        elif value == "BEARISH":
-            direction_score -= weights[tf] * 0.8
-
-    # ========================
-    # VWAP INSTITUTIONAL BIAS
-    # ========================
-    for tf, value in [("1h", vwap1h), ("15m", vwap15), ("5m", vwap5)]:
-        if value == "ABOVE":
-            direction_score += weights[tf] * 0.7
-        elif value == "BELOW":
-            direction_score -= weights[tf] * 0.7
-
-    # ========================
-    # ADX (TREND STRENGTH)
-    # ========================
-    for tf, adx in [("1h", adx1h), ("15m", adx15)]:
-        _, val = adx
+    for tf, (state, val) in adx.items():
+        w = tf_weights[tf] * indicator_mult["adx"]
         if val >= 30:
-            environment_score += weights[tf] * 0.7
+            environment_score += w
         elif val >= 25:
-            environment_score += weights[tf] * 0.4
+            environment_score += w * 0.6
         else:
-            environment_score -= weights[tf] * 0.5
+            environment_score -= w * 0.5
 
     # ========================
-    # ATR (VOLATILITY)
+    # ATR (volatility scaling)
     # ========================
-    for tf, atr in [("1h", atr1h), ("15m", atr15)]:
-        state, _ = atr
+    for tf, (state, _) in atr.items():
+        w = tf_weights[tf] * indicator_mult["atr"]
         if state == "HIGH":
-            environment_score += weights[tf] * 0.3
+            environment_score += w
         elif state == "LOW":
-            environment_score -= weights[tf] * 0.3
+            environment_score -= w
 
     # ========================
-    # RSI (TIMING ONLY)
+    # RSI (timing scaling)
     # ========================
-    for tf, rsi in [("15m", rsi15), ("5m", rsi5)]:
-        _, val = rsi
+    for tf, (_, val) in rsi.items():
+        w = tf_weights[tf] * indicator_mult["rsi"]
         if 45 <= val <= 60:
-            timing_score += weights[tf] * 0.4
+            timing_score += w
         elif val < 30 or val > 70:
-            timing_score -= weights[tf] * 0.4
+            timing_score -= w
 
     # ========================
     # FINAL CALCULATION
     # ========================
-    raw_score = abs(direction_score) + environment_score + timing_score
+    net_direction = direction_score
+    raw_score = max(0, net_direction + environment_score + timing_score)
+    confidence = min(10, round(raw_score))
 
-    confidence = max(0, min(10, round(raw_score)))
-
-    # Bias
-    if direction_score > 4:
+    # ========================
+    # BIAS
+    # ========================
+    if net_direction > 2:
         bias = "Bullish"
-    elif direction_score < -4:
+    elif net_direction < -2:
         bias = "Bearish"
     else:
         bias = "Sideways"
 
-    # Description
+    # ========================
+    # DESCRIPTION
+    # ========================
     if bias == "Bullish" and confidence >= 7:
         desc = "Strong Bullish Continuation"
     elif bias == "Bullish":
