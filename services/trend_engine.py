@@ -20,11 +20,7 @@ def utc_now():
 
 def format_time(dt, tz_name):
     local_time = dt.astimezone(ZoneInfo(tz_name))
-
-    if tz_name.upper() == "UTC":
-        return local_time.strftime("%Y-%m-%d %H:%M:%S")
-    else:
-        return local_time.strftime("%I:%M:%S %p")
+    return local_time.strftime("%I:%M:%S %p")
 
 def trend_values_of_indicators(df):
 
