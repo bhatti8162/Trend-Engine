@@ -3,7 +3,8 @@ from flask_cors import CORS
 from config import SYMBOL_DEFAULT
 
 from services.binance_service import get_binance_client
-from services.trend_engine import tf_map_on_trend_values, get_decision_on_signal
+from services.trend_engine import tf_map_on_trend_values
+from services.trend_decision import get_decision_on_signal
 from services.trailing_engine import long_trailing_atr, short_trailing_atr
 
 
