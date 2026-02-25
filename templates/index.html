@@ -29,7 +29,6 @@
   #decision {
     font-size: 20px;
     margin-top: 5px;
-    /* color: #ffff; */
     font-weight: bold;
   }
   .tf-container {
@@ -122,26 +121,57 @@
 </footer>
 
 <script>
+let btcDecisionGlobal = "--";
+
 async function loadTrend(symbol = "BTCUSDT") {
   showLoading(true);
-  try {
-    const res = await fetch(`/api/trend?symbol=${symbol}`);
-    const data = await res.json();
 
-    renderHeader(data);
-    renderTimeframes(data);
-    renderTimes(data);
+  try {
+    // Always fetch BTC
+    const btcRes = await fetch(`/api/trend?symbol=BTCUSDT`);
+    const btcData = await btcRes.json();
+    btcDecisionGlobal = btcData.trade_decision || "--";
+
+    // Fetch selected symbol
+    const res = await fetch(`/api/trend?symbol=${symbol}`);
+    const coinData = await res.json();
+
+    renderHeader(coinData, coinData.trade_decision);
+    renderTimeframes(coinData);
+    renderTimes(coinData);
 
   } catch (err) {
     console.error("API Error:", err);
   }
+
   showLoading(false);
 }
 
-function renderHeader(data) {
+function renderHeader(data, coinDecision) {
   document.getElementById("symbol").innerText = data.symbol || "--";
   document.getElementById("price").innerText = data.price || "--";
-  document.getElementById("decision").innerHTML = `<p><span class="${colorTrend(data.trade_decision)}">${data.trade_decision}</span></p>` || "--";
+
+  let decisionHTML = `
+    <p>
+      BTC: <span class="${colorTrend(btcDecisionGlobal)}">
+        ${btcDecisionGlobal || "--"}
+      </span>
+    </p>
+  `;
+
+  // Only add coin decision if it exists and is not empty
+  if (coinDecision && data.symbol !== "BTCUSDT") {
+    decisionHTML += `
+      <p>
+        ${data.symbol}: 
+        <span class="${colorTrend(coinDecision)}">
+          ${coinDecision}
+        </span>
+      </p>
+    `;
+  }
+
+  document.getElementById("decision").innerHTML = decisionHTML;
 }
 
 function renderTimeframes(data) {
@@ -150,11 +180,10 @@ function renderTimeframes(data) {
 
   if (!data.trends) return;
 
-  // Order of timeframes
   const orderedTimeframes = ["1h", "15m", "5m", "1m"];
 
   orderedTimeframes.forEach(tf => {
-    if (!data.trends[tf]) return; // skip if missing
+    if (!data.trends[tf]) return;
 
     const trend = data.trends[tf] || "--";
     const ema = data.ema25_strength[tf] || "--";
@@ -168,6 +197,7 @@ function renderTimeframes(data) {
 
     card.innerHTML = `
       <h3>${tf}</h3>
+      <p>Symbol: ${data.symbol}</p>
       <p>Trend: <span class="${colorTrend(trend)}">${trend}</span></p>
       <p>EMA25: <span class="${colorTrend(ema)}">${ema}</span></p>
       <p>VWAP: <span class="${colorVWAP(vwap)}">${vwap}</span></p>
@@ -185,10 +215,8 @@ function renderTimes(data) {
   container.innerHTML = "";
   if (!data.times) return;
 
-  // Define the desired order
   const order = ["UTC", "PK", "Tokyo", "London", "NewYork"];
 
-  // Loop in the specified order
   order.forEach((key) => {
     if (data.times[key]) {
       const row = document.createElement("div");
@@ -218,14 +246,14 @@ function showLoading(state) {
   document.getElementById("loading").style.display = state ? "block" : "none";
 }
 
-// Button click to load symbol
 document.getElementById("load-btn").addEventListener("click", () => {
   const symbol = document.getElementById("symbol-input").value.trim().toUpperCase();
   if (symbol) loadTrend(symbol);
 });
 
-// initial load
+// Initial load
 loadTrend();
 </script>
+
 </body>
 </html>
