@@ -94,15 +94,18 @@
 <body>
 
 <div class="header">
+  <div style="display: flex; gap: 5px; width: fit-content; margin: 0 auto;">
+    <div id="btc_h1_change">--</div>
+    <div id="btc_d1_change">--</div>
+  </div>
   <div id="symbol">--</div>
   <div id="price">--</div>
-  <div id="btc_h1_change">--</div>
-  <div id="decision">--</div>
 </div>
-
+</br>
 <div class="input-container">
   <input type="text" id="symbol-input" placeholder="Enter symbol e.g. BTCUSDT">
   <button id="load-btn">Load</button>
+  <div id="decision">--</div>
 </div>
 
 <div class="tf-container" id="tf-container"></div>
@@ -142,8 +145,9 @@ async function loadTrend(symbol = "BTCUSDT") {
 function renderHeader(data) {
   document.getElementById("symbol").innerText = data.symbol || "--";
   document.getElementById("price").innerText = data.price || "--";
-  document.getElementById("btc_h1_change").innerHTML = `<p><span class="${colorH1Change(data.btc_h1_change)}">BTC 1H Change: ${data.btc_h1_change}</span></p>` || "--";
+  document.getElementById("btc_h1_change").innerHTML = `<p>BTC Change <span class="${colorH1Change(data.btc_h1_change)}">1H Change: ${data.btc_h1_change}</span></p>` || "--";
   document.getElementById("decision").innerHTML = `<p><span class="${colorTrend(data.trade_decision)}">${data.trade_decision}</span></p>` || "--";
+  document.getElementById("btc_d1_change").innerHTML = `<p><span class="${colorH1Change(data.btc_d1_change)}">1D Change: ${data.btc_d1_change}</span></p>` || "--";
 }
 
 function renderTimeframes(data) {
@@ -170,6 +174,7 @@ function renderTimeframes(data) {
 
     card.innerHTML = `
       <h3>${tf}</h3>
+      <p>Symbol: <b>${data.symbol}</b></p>
       <p>Trend: <span class="${colorTrend(trend)}">${trend}</span></p>
       <p>EMA25: <span class="${colorTrend(ema)}">${ema}</span></p>
       <p>VWAP: <span class="${colorVWAP(vwap)}">${vwap}</span></p>
