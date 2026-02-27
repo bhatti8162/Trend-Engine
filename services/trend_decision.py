@@ -7,89 +7,130 @@ def get_decision_on_signal(
     rsi_map
 ):
     """
-    Each indicator scored individually with weights.
-    Returns: one-line description + float confidence 0-10
+    Regime-based decision engine.
+    Detects real market states before assigning bias.
+    Returns: description + confidence 0-10
     """
 
-    # Timeframe weights
     tf_weights = {"1h": 2.0, "15m": 1.0, "5m": 0.5}
 
-    # Indicator-specific weights
-    indicator_weights = {
-        "trend": 1.0,
-        "ema": 1.0,
-        "vwap": 1.0,
-        "adx": 1.5,
-        "atr": 1.0,
-        "rsi": 1.0
-    }
+    # =========================
+    # 1️⃣ STRUCTURE SCORE
+    # =========================
+    direction_score = 0
+    alignment_count = 0
 
-    # -----------------------
-    # 1️⃣ DIRECTION (structure)
-    # -----------------------
-    def score_structure(map_, weight):
-        score = 0
-        for tf, val in map_.items():
-            w = tf_weights.get(tf, 0) * weight
-            if val in ("BULLISH", "ABOVE", "UP"):
-                score += w
-            elif val in ("BEARISH", "BELOW", "DOWN"):
-                score -= w
-        return score
+    for tf in tf_weights:
+        w = tf_weights[tf]
 
-    direction_score = (
-        score_structure(trend_map, indicator_weights["trend"]) +
-        score_structure(ema_trend_map, indicator_weights["ema"]) +
-        score_structure(vwap_trend_map, indicator_weights["vwap"])
-    )
+        t = trend_map.get(tf)
+        e = ema_trend_map.get(tf)
+        v = vwap_trend_map.get(tf)
 
-    if direction_score >= 3:
+        bullish = sum([
+            t == "BULLISH",
+            e in ("UP", "ABOVE"),
+            v == "ABOVE"
+        ])
+
+        bearish = sum([
+            t == "BEARISH",
+            e in ("DOWN", "BELOW"),
+            v == "BELOW"
+        ])
+
+        if bullish > bearish:
+            direction_score += w
+            alignment_count += 1
+        elif bearish > bullish:
+            direction_score -= w
+            alignment_count += 1
+
+    # Determine base bias
+    if direction_score >= 2:
         bias = "Bullish"
-    elif direction_score <= -3:
+    elif direction_score <= -2:
         bias = "Bearish"
     else:
-        bias = "Sideways"
+        bias = "Neutral"
 
-    # -----------------------
-    # 2️⃣ ENVIRONMENT
-    # -----------------------
-    environment_score = 0
-    for tf, (state, val) in adx_map.items():
-        w = tf_weights.get(tf, 0) * indicator_weights["adx"]
-        environment_score += w if val >= 30 else -w if val < 20 else 0
+    # =========================
+    # 2️⃣ TREND STRENGTH (ADX)
+    # =========================
+    strong_trend = 0
+    weak_trend = 0
+
+    for tf, (_, val) in adx_map.items():
+        if val >= 30:
+            strong_trend += tf_weights.get(tf, 0)
+        elif val < 20:
+            weak_trend += tf_weights.get(tf, 0)
+
+    # =========================
+    # 3️⃣ VOLATILITY (ATR)
+    # =========================
+    high_vol = 0
+    low_vol = 0
 
     for tf, (state, _) in atr_map.items():
-        w = tf_weights.get(tf, 0) * indicator_weights["atr"]
-        environment_score += w if state == "HIGH" else -w if state == "LOW" else 0
+        if state == "HIGH":
+            high_vol += tf_weights.get(tf, 0)
+        elif state == "LOW":
+            low_vol += tf_weights.get(tf, 0)
 
-    # -----------------------
-    # 3️⃣ TIMING
-    # -----------------------
-    timing_score = 0
+    # =========================
+    # 4️⃣ MOMENTUM EXTREME (RSI)
+    # =========================
+    overbought = 0
+    oversold = 0
+
     for tf, (_, val) in rsi_map.items():
-        w = tf_weights.get(tf, 0) * indicator_weights["rsi"]
-        if 45 <= val <= 60:
-            timing_score += w
-        elif val < 30 or val > 70:
-            timing_score -= w
+        if val > 70:
+            overbought += tf_weights.get(tf, 0)
+        elif val < 30:
+            oversold += tf_weights.get(tf, 0)
 
-    # -----------------------
-    # FINAL FLOAT CONFIDENCE
-    # -----------------------
-    total_strength = abs(direction_score) + environment_score + timing_score
-    # scale to 0-10 if needed
-    confidence = max(0.0, min(10.0, total_strength / 2.0))  # simple scaling
+    # =========================
+    # 5️⃣ MARKET REGIME LOGIC
+    # =========================
 
-    # Description
-    if environment_score < 0:
-        desc = f"{bias} but Low Quality Environment"
-    elif bias == "Sideways":
-        desc = "Sideways – mixed structure"
-    elif confidence >= 8:
-        desc = f"Strong {bias} Continuation"
-    elif confidence >= 5:
-        desc = f"Moderate {bias}"
+    # --- Strong continuation ---
+    if strong_trend >= 2 and high_vol >= 1.5 and bias != "Neutral":
+        desc = f"Strong {bias} Trend – Continuation Environment"
+        confidence = 8.5
+
+    # --- Weak trend ---
+    elif strong_trend >= 1 and low_vol >= 1 and bias != "Neutral":
+        desc = f"Weak {bias} – Low Volatility Drift"
+        confidence = 5.5
+
+    # --- Ranging market ---
+    elif weak_trend >= 2 and low_vol >= 1.5:
+        desc = "Ranging Market – Mean Reversion Environment"
+        confidence = 4.0
+
+    # --- Compression before breakout ---
+    elif strong_trend >= 1 and low_vol >= 2:
+        desc = "Volatility Compression – Breakout Likely"
+        confidence = 6.0
+
+    # --- Exhaustion ---
+    elif overbought >= 2 and bias == "Bullish":
+        desc = "Bullish Trend Exhaustion – Pullback Risk"
+        confidence = 5.0
+
+    elif oversold >= 2 and bias == "Bearish":
+        desc = "Bearish Trend Exhaustion – Bounce Risk"
+        confidence = 5.0
+
+    # --- Conflict / Chop ---
+    elif alignment_count <= 1:
+        desc = "Choppy Structure – No Clear Direction"
+        confidence = 3.0
+
+    # --- Neutral ---
     else:
-        desc = f"Weak {bias}"
+        desc = "Mixed Conditions – Low Edge"
+        confidence = 4.5
 
     return f"{desc} | Confidence: {confidence:.2f}/10"
