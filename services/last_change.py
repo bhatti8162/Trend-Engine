@@ -1,4 +1,5 @@
 import requests
+from config import CMC_KEY
 
 def get_change(symbol="BTC"):
 
@@ -6,7 +7,7 @@ def get_change(symbol="BTC"):
 
     headers = {
         "Accepts": "application/json",
-        "X-CMC_PRO_API_KEY": "7777a8f48a2f404ea957acb2f00af503"
+        "X-CMC_PRO_API_KEY": CMC_KEY
     }
 
     params = {

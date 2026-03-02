@@ -5,6 +5,7 @@ load_dotenv()
 
 API_KEY = os.getenv("BINANCE_API_KEY")
 API_SECRET = os.getenv("BINANCE_API_SECRET")
+CMC_KEY = os.getenv("CMC_KEY")
 
 SYMBOL_DEFAULT = "BTCUSDT"
 QTY_DEFAULT = 0.001
