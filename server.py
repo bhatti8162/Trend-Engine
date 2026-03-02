@@ -74,8 +74,8 @@ def check_trend_engine(symbol):
         return {
             "times": times,
             "symbol": symbol,
-            "support": supporting,
-            "resistance": resisting,
+            "support": str(supporting).upper(),
+            "resistance": str(resisting).upper(),
             "btc_h1_change": f"{btc_h1_change}%",
             "btc_d1_change": f"{btc_d1_change}%",
             "price": round(price_cache, 6) if price_cache else None,

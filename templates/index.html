@@ -264,7 +264,7 @@ function colorH1Change(value) {
   value = String(value)
   if (!value) return "gray";
 
-  const redKeywords = ["-", "RED", "false"];
+  const redKeywords = ["-", "RED", "FALSE"];
 
   if (redKeywords.some(keyword => value.includes(keyword))) return "red";
 
