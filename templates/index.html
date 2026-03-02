@@ -99,9 +99,11 @@
     <div id="btc_d1_change">--</div>
     <div id="btc_h1_color">--</div>
     <div id="btc_d1_color">--</div>
+
   </div>
   <div style="display: flex; gap: 5px; width: fit-content; margin: 0 auto;">
-
+    <div id="support">--</div>
+    <div id="resistance">--</div>
   </div>
   <div id="symbol">--</div>
   <div id="price">--</div>
@@ -152,10 +154,14 @@ function renderHeader(data) {
   document.getElementById("price").innerText = data.price || "--";
   // change of last candle
   document.getElementById("btc_h1_change").innerHTML = `<p>BTC Change <span class="${colorH1Change(data.btc_h1_change)}">1H ${data.btc_h1_change}</span>,</p>` || "--";
-  document.getElementById("btc_d1_change").innerHTML = `<p><span class="${colorH1Change(data.btc_d1_change)}">1D ${data.btc_d1_change}</span></p>` || "--";
+  document.getElementById("btc_d1_change").innerHTML = `<p><span class="${colorH1Change(data.btc_d1_change)}">1D ${data.btc_d1_change}</span> | </p>` || "--";
   // color of last candle
   document.getElementById("btc_h1_color").innerHTML = `<p>BTC Candle Color <span class="${colorH1Change(data.colors['1h'])}">1H ${data.colors['1h']}</span>,</p>` || "--";
-  document.getElementById("btc_d1_color").innerHTML = `<p><span class="${colorH1Change(data.colors['1d'])}">1D ${data.colors['1d']}</span></p>` || "--";
+  document.getElementById("btc_d1_color").innerHTML = `<p><span class="${colorH1Change(data.colors['1d'])}">1D ${data.colors['1d']}</span> </p>` || "--";
+  // support resistance level
+  document.getElementById("support").innerHTML = `<p>Support<span class="${colorH1Change(data.support)}"> ${data.support}</span>,</p>` || "--";
+  document.getElementById("resistance").innerHTML = `<p>Resistance<span class="${colorH1Change(data.resistance)}"> ${data.resistance}</span></p>` || "--";
+ 
   document.getElementById("decision").innerHTML = `<p><span class="${colorTrend(data.trade_decision)}">${data.trade_decision}</span></p>` || "--";
 }
 
@@ -258,7 +264,7 @@ function colorH1Change(value) {
   value = String(value)
   if (!value) return "gray";
 
-  const redKeywords = ["-", "RED"];
+  const redKeywords = ["-", "RED", "false"];
 
   if (redKeywords.some(keyword => value.includes(keyword))) return "red";
 
