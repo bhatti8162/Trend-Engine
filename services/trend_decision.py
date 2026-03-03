@@ -133,4 +133,4 @@ def get_decision_on_signal(
         desc = "Mixed Conditions – Low Edge"
         confidence = 4.5
 
-    return f"{desc} | Confidence: {confidence:.2f}/10"
+    return f"{desc} | Confidence: {confidence:.2f}"
